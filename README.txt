@@ -1,31 +1,31 @@
-BÍBLIA KING JAMES MAX
+APP BÍBLIA ACF COM IA
 
-Conteúdo:
-- Bíblia King James 1769 completa
-- leitura por livro e capítulo
-- busca
-- favoritos
-- anotações
-- plano de leitura
-- login com Supabase
-- sincronização em nuvem
-- PWA
-- script SQL em sql/supabase.sql
+O que vem:
+- Bíblia ACF em português como PDF completo: data/acf.pdf
+- IA bíblica com 5 modos: chat, explicar, reflexão, oração e estudo
+- API server-side em api/ai.js
+- Login com Supabase
+- Favoritos, anotações e plano de leitura
+- PWA com ícone aplicado
 
-Estrutura que precisa subir para GitHub/Vercel:
+Como publicar no Vercel:
+1. Suba tudo descompactado no GitHub
+2. No Supabase, rode sql/supabase.sql
+3. Ative Authentication > Email
+4. No Vercel, adicione as variáveis:
+   OPENAI_API_KEY = sua chave da OpenAI
+   OPENAI_MODEL = gpt-5.4-mini   (opcional)
+5. Faça Redeploy
+
+Arquivos importantes:
 - index.html
 - style.css
 - app.js
 - config.js
 - manifest.json
 - sw.js
-- data/verses-1769.json
-- data/layout-1769.json
+- api/ai.js
+- data/acf.pdf
+- icons/icon-192.png
+- icons/icon-512.png
 - sql/supabase.sql
-
-Passos:
-1. Suba a pasta inteira descompactada
-2. Rode sql/supabase.sql no Supabase
-3. Ative Auth por e-mail no Supabase
-4. Faça redeploy no Vercel
-5. Teste login, favoritos, anotações e plano

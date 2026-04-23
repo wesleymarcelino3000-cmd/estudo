@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bíblia ACF IA Grátis</title>
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="manifest.json" />
   <style>
     *{box-sizing:border-box}
     :root{
@@ -61,6 +63,7 @@
         <p>Leitura, busca, favoritos, anotações, plano e IA local sem custo</p>
       </div>
     </div>
+    <button id="installBtn" style="display:none">Instalar app</button>
     <button id="themeToggle" class="ghost">Tema</button>
   </header>
 
@@ -211,6 +214,879 @@
     function switchView(view){
       document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
       document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
+      el("view-" + view).classList.add("active");
+      document.querySelector(`.menu-btn[data-view="${view}"]`).classList.add("active");
+      if(view === "favoritos") renderFavorites();
+      if(view === "anotacoes") renderNotes();
+      if(view === "plano") renderPlan();
+      if(view === "busca") renderSearch();
+    }
+
+    function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
+    function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
+    function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+    function findByRef(ref){ return state.flatVerses.find(v => refFor(v).toLowerCase() === ref.toLowerCase()); }
+
+    async function loadBible() {
+      try {
+        const res = await fetch("./data/acf_biblia_ptbr.json", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+        const data = await res.json();
+
+        state.books = data.books || [];
+        state.flatVerses = [];
+
+        state.books.forEach(book => {
+          (book.chapters || []).forEach((chapter, cIndex) => {
+            (chapter || []).forEach((verse, vIndex) => {
+              state.flatVerses.push({
+                book: book.name,
+                chapter: cIndex + 1,
+                verse: vIndex + 1,
+                text: verse
+              });
+            });
+          });
+        });
+
+        if (!state.books.length) throw new Error("JSON sem livros");
+
+        el("statusText").textContent = `Bíblia carregada: ${state.flatVerses.length} versículos`;
+        populateBooks();
+        renderChapter();
+      } catch (e) {
+        console.error(e);
+        el("statusText").textContent = "Erro ao carregar JSON da Bíblia";
+        el("chapterList").innerHTML = `<div class="item">Não foi possível carregar <b>data/acf_biblia_ptbr.json</b>.</div>`;
+      }
+    }
+
+    function populateBooks(){
+      const select = el("bookSelect");
+      select.innerHTML = state.books.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+      state.currentBook = state.books[0]?.name || "";
+      select.value = state.currentBook;
+      populateChapters();
+    }
+
+    function populateChapters(){
+      const chapters = allChapters(state.currentBook);
+      const select = el("chapterSelect");
+      select.innerHTML = chapters.map(c => `<option value="${c}">${c}</option>`).join("");
+      state.currentChapter = chapters[0] || 1;
+      select.value = String(state.currentChapter);
+    }
+
+    function renderVerseCard(v, showRemove=false){
+      const div = document.createElement("div");
+      div.className = "verse-card";
+      div.innerHTML = `<div class="ref">${refFor(v)}</div><div>${v.text}</div>`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const fav = document.createElement("button");
+      fav.className = "small-btn" + (state.favorites.includes(refFor(v)) ? " saved" : "");
+      fav.textContent = state.favorites.includes(refFor(v)) ? "Favorito" : "Salvar favorito";
+      fav.onclick = () => toggleFavorite(refFor(v));
+
+      const note = document.createElement("button");
+      note.className = "small-btn ghost";
+      note.textContent = "Anotar";
+      note.onclick = () => {
+        el("noteRef").value = refFor(v);
+        el("noteText").value = state.notes[refFor(v)] || "";
+        switchView("anotacoes");
+      };
+
+      const ai = document.createElement("button");
+      ai.className = "small-btn ghost";
+      ai.textContent = "Explicar grátis";
+      ai.onclick = () => {
+        el("aiMode").value = "explicar";
+        el("aiInput").value = `${refFor(v)}: ${v.text}`;
+        switchView("ia");
+      };
+
+      actions.appendChild(fav);
+      actions.appendChild(note);
+      actions.appendChild(ai);
+
+      if(showRemove){
+        const rem = document.createElement("button");
+        rem.className = "small-btn ghost";
+        rem.textContent = "Remover";
+        rem.onclick = () => toggleFavorite(refFor(v));
+        actions.appendChild(rem);
+      }
+
+      div.appendChild(actions);
+      return div;
+    }
+
+    function renderChapter(){
+      el("chapterTitle").textContent = `${state.currentBook} ${state.currentChapter}`;
+      const root = el("chapterList");
+      root.innerHTML = "";
+      const verses = chapterVerses(state.currentBook, state.currentChapter);
+      if(!verses.length){
+        root.innerHTML = '<div class="item">Nenhum versículo encontrado.</div>';
+        return;
+      }
+      verses.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderSearch(){
+      const term = el("searchInput").value.trim().toLowerCase();
+      const root = el("searchList");
+      root.innerHTML = "";
+      if(!term){
+        root.innerHTML = '<div class="item">Digite algo para buscar.</div>';
+        return;
+      }
+      const results = state.flatVerses.filter(v =>
+        refFor(v).toLowerCase().includes(term) || String(v.text).toLowerCase().includes(term)
+      ).slice(0, 200);
+
+      if(!results.length){
+        root.innerHTML = '<div class="item">Nenhum resultado encontrado.</div>';
+        return;
+      }
+      results.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderFavorites(){
+      const root = el("favoritesList");
+      root.innerHTML = "";
+      if(!state.favorites.length){
+        root.innerHTML = '<div class="item">Nenhum favorito salvo.</div>';
+        return;
+      }
+      state.favorites.forEach(ref => {
+        const v = state.flatVerses.find(x => refFor(x) === ref);
+        if(v) root.appendChild(renderVerseCard(v, true));
+      });
+    }
+
+    function renderNotes(){
+      const root = el("notesList");
+      root.innerHTML = "";
+      const entries = Object.entries(state.notes);
+      if(!entries.length){
+        root.innerHTML = '<div class="item">Nenhuma anotação salva.</div>';
+        return;
+      }
+      entries.forEach(([ref, text]) => {
+        const item = document.createElement("div");
+        item.className = "item";
+        item.innerHTML = `<div class="item-title">${ref}</div><div>${String(text).slice(0, 280)}</div>`;
+        item.onclick = () => {
+          el("noteRef").value = ref;
+          el("noteText").value = text;
+        };
+        root.appendChild(item);
+      });
+    }
+
+    function renderPlan(){
+      const root = el("planList");
+      root.innerHTML = "";
+      planDays.forEach((day, i) => {
+        const done = !!state.plan[i];
+        const item = document.createElement("div");
+        item.className = "plan-item" + (done ? " done" : "");
+        item.innerHTML = `<div class="item-title">${day}</div><div>${done ? "Concluído" : "Pendente"}</div>`;
+        const btn = document.createElement("button");
+        btn.textContent = done ? "Marcar pendente" : "Concluir";
+        btn.style.marginTop = "10px";
+        btn.onclick = () => togglePlan(i);
+        item.appendChild(btn);
+        root.appendChild(item);
+      });
+    }
+
+    function toggleFavorite(ref){
+      if(state.favorites.includes(ref)){
+        state.favorites = state.favorites.filter(x => x !== ref);
+        toast("Favorito removido");
+      } else {
+        state.favorites.unshift(ref);
+        toast("Favorito salvo");
+      }
+      saveLocal();
+      renderFavorites();
+      renderChapter();
+      renderSearch();
+    }
+
+    function saveNote(){
+      const ref = el("noteRef").value.trim();
+      const text = el("noteText").value.trim();
+      if(!ref) return toast("Digite a referência");
+      if(text) state.notes[ref] = text; else delete state.notes[ref];
+      saveLocal();
+      renderNotes();
+      toast(text ? "Anotação salva" : "Anotação removida");
+    }
+
+    function togglePlan(i){
+      state.plan[i] = !state.plan[i];
+      saveLocal();
+      renderPlan();
+    }
+
+    function resetPlan(){
+      state.plan = {};
+      saveLocal();
+      renderPlan();
+      toast("Plano resetado");
+    }
+
+    
+    
+    function normalizeText(text){
+      return String(text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function randomPick(list){
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function uniqueByRef(list){
+      const seen = new Set();
+      return list.filter(v => {
+        const r = refFor(v);
+        if(seen.has(r)) return false;
+        seen.add(r);
+        return true;
+      });
+    }
+
+    const smartDictionary = {
+      ansiedade: ["ansiedade","ansioso","preocupacao","preocupado","medo","cuidado","aflito","aflicao","paz","descanso"],
+      fe: ["fe","crer","cre","confiar","confia","esperanca","promessa","fidelidade"],
+      amor: ["amor","amar","amou","caridade","misericordia","compaixao"],
+      perdao: ["perdao","perdoar","perdoai","misericordia","arrependimento","pecado"],
+      medo: ["medo","temor","temas","assombro","coragem","fortalece","fortaleza"],
+      familia: ["familia","casa","filhos","pai","mae","marido","mulher"],
+      prosperidade: ["prosperar","prosperidade","bencao","abencoado","trabalho","sustento"],
+      cura: ["cura","curar","enfermidade","doenca","saude","sararei","sarado"],
+      sabedoria: ["sabedoria","sabio","entendimento","prudencia","conselho","ensina"],
+      salvacao: ["salvacao","salvo","vida eterna","jesus","cristo","crer","evangelho"],
+      oracao: ["oracao","orar","clamar","pedi","pedir","buscai","buscar"],
+      pecado: ["pecado","iniquidade","transgressao","arrependimento","santidade"],
+      gratidao: ["gratidao","gracas","agradecer","louvor","bendizei"],
+      casamento: ["casamento","marido","mulher","esposa","amor","uniao"],
+      tristeza: ["tristeza","choro","lagrimas","aflito","consola","consolo"]
+    };
+
+    function detectTheme(input){
+      const text = normalizeText(input);
+      let best = {theme: "geral", score: 0};
+      Object.entries(smartDictionary).forEach(([theme, words]) => {
+        let score = 0;
+        words.forEach(w => {
+          if(text.includes(normalizeText(w))) score += 2;
+        });
+        if(score > best.score) best = {theme, score};
+      });
+      return best.theme;
+    }
+
+    function extractWords(input){
+      const stop = new Set(["sobre","como","porque","para","qual","quais","voce","você","explique","explica","fale","versiculo","versículo","biblia","bíblia","deus","senhor","jesus","cristo","uma","com","dos","das","que","por","mais","menos","isso","esse","essa","este","esta","tem"]);
+      return normalizeText(input)
+        .replace(/[^\w\s]/g, " ")
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !stop.has(w));
+    }
+
+    function findRelatedVerses(input, limit=8){
+      const theme = detectTheme(input);
+      const words = extractWords(input);
+      const themeWords = smartDictionary[theme] || [];
+      const allWords = [...new Set([...words, ...themeWords.map(normalizeText)])];
+
+      const scored = state.flatVerses.map(v => {
+        const ref = normalizeText(refFor(v));
+        const text = normalizeText(v.text);
+        let score = 0;
+
+        words.forEach(w => {
+          if(ref.includes(w)) score += 3;
+          if(text.includes(w)) score += 4;
+        });
+
+        themeWords.forEach(w => {
+          const nw = normalizeText(w);
+          if(text.includes(nw)) score += 2;
+        });
+
+        // pesos espirituais gerais
+        if(theme === "ansiedade" && (text.includes("paz") || text.includes("cuidado") || text.includes("descanso"))) score += 3;
+        if(theme === "fe" && (text.includes("crer") || text.includes("fe") || text.includes("confia"))) score += 3;
+        if(theme === "amor" && (text.includes("amor") || text.includes("amou") || text.includes("caridade"))) score += 3;
+        if(theme === "medo" && (text.includes("temas") || text.includes("fortalece") || text.includes("medo"))) score += 3;
+        if(theme === "oracao" && (text.includes("orai") || text.includes("pedi") || text.includes("clama"))) score += 3;
+
+        return {v, score};
+      }).filter(x => x.score > 0)
+        .sort((a,b) => b.score - a.score)
+        .slice(0, limit)
+        .map(x => x.v);
+
+      if(scored.length) return uniqueByRef(scored);
+
+      return state.flatVerses
+        .filter(v => ["Salmos","João","Romanos","Mateus","Provérbios","Filipenses"].includes(v.book))
+        .slice(0, limit);
+    }
+
+    function identifyDirectVerse(input){
+      const m = input.match(/([1-3]?\s?[A-Za-zÁ-ú]+)\s+(\d+):(\d+)/i);
+      if(!m) return null;
+
+      const rawBook = normalizeText(m[1].trim());
+      const chapter = Number(m[2]);
+      const verse = Number(m[3]);
+
+      return state.flatVerses.find(v =>
+        normalizeText(v.book).includes(rawBook) &&
+        v.chapter === chapter &&
+        v.verse === verse
+      ) || null;
+    }
+
+    function verseBlock(verses){
+      return verses.map(v => `- ${refFor(v)}: ${v.text}`).join("\n");
+    }
+
+    function getMainIdea(theme){
+      const ideas = {
+        ansiedade: "Deus chama o coração ansioso para descansar nele, trocar preocupação por oração e confiar no cuidado do Senhor.",
+        fe: "A fé bíblica é confiança prática em Deus, mesmo quando as circunstâncias ainda não mudaram.",
+        amor: "O amor bíblico nasce em Deus e se manifesta em atitudes concretas de cuidado, perdão e serviço.",
+        perdao: "O perdão revela um coração alcançado pela graça e disposto a obedecer a Deus.",
+        medo: "A Palavra mostra que o medo não deve governar o coração; Deus fortalece e sustenta os seus.",
+        familia: "A família é um campo de responsabilidade, amor, ensino e testemunho diante de Deus.",
+        cura: "A Bíblia apresenta Deus como aquele que cuida, consola e pode restaurar segundo a sua vontade.",
+        sabedoria: "Sabedoria bíblica é viver com temor do Senhor, prudência e obediência.",
+        salvacao: "A salvação é dom de Deus, recebida pela fé, centralizada em Cristo.",
+        oracao: "A oração é dependência viva de Deus, entrega, comunhão e confiança.",
+        tristeza: "Deus vê a dor, consola o aflito e sustenta quem se aproxima dele.",
+        geral: "A Palavra de Deus dá direção, corrige o caminho e fortalece a vida espiritual."
+      };
+      return ideas[theme] || ideas.geral;
+    }
+
+    function buildFreeAnswer(mode,input){
+      const theme = detectTheme(input);
+      const related = findRelatedVerses(input, 7);
+      const direct = identifyDirectVerse(input);
+      const selected = direct ? [direct, ...related.filter(v => refFor(v) !== refFor(direct)).slice(0,4)] : related.slice(0,5);
+
+      const intro = randomPick([
+        "Analisei sua pergunta usando os textos da Bíblia carregados no app.",
+        "Busquei dentro da própria Bíblia os textos mais relacionados com esse tema.",
+        "Separei uma resposta bíblica com base no tema e nos versículos encontrados.",
+        "Abaixo está uma resposta montada a partir das passagens bíblicas relacionadas."
+      ]);
+
+      const application = randomPick([
+        "- ore sobre esse assunto antes de agir\n- escolha um versículo para meditar hoje\n- aplique uma atitude prática baseada na Palavra",
+        "- leia os textos com calma\n- anote o que Deus está ensinando\n- transforme o aprendizado em obediência",
+        "- entregue essa área ao Senhor\n- busque direção na Palavra\n- caminhe com fé, paciência e sabedoria",
+        "- não fique apenas na emoção\n- compare os textos bíblicos\n- pratique uma mudança pequena, mas real"
+      ]);
+
+      if(mode === "explicar"){
+        const v = direct || related[0];
+        const ref = v ? refFor(v) : "trecho informado";
+        const txt = v ? v.text : input;
+
+        return `Explicação bíblica inteligente\n\n${intro}\n\nReferência analisada:\n${ref}\n\nTexto:\n${txt}\n\nIdeia principal:\n${getMainIdea(theme)}\n\nO que esse texto ensina:\n1. Ele mostra algo sobre o caráter de Deus.\n2. Ele aponta para uma resposta de fé, obediência ou confiança.\n3. Ele deve ser aplicado na vida prática, não apenas entendido mentalmente.\n\nVersículos relacionados:\n${verseBlock(selected)}\n\nAplicação:\n${application}\n\nResumo final:\nEsse ensino convida você a aproximar seu coração de Deus e responder com fé prática.`;
+      }
+
+      if(mode === "reflexao"){
+        return `Reflexão bíblica\n\n${intro}\n\nTema identificado: ${theme}\n\n${getMainIdea(theme)}\n\nVersículos para meditar:\n${verseBlock(selected)}\n\nReflexão:\nA Bíblia não trata esse tema de forma distante. Ela toca o coração, corrige a direção e fortalece a fé. Quando observamos esses textos, percebemos que Deus não apenas informa, mas conduz a pessoa para uma vida mais firme, obediente e confiante.\n\nAplicação para hoje:\n${application}\n\nConclusão:\nPermita que essa palavra produza uma atitude prática ainda hoje.`;
+      }
+
+      if(mode === "oracao"){
+        return `Oração baseada no tema\n\nSenhor Deus,\n\nEu coloco diante de Ti este assunto: ${input}.\nAjuda-me a compreender a Tua vontade, guardar a Tua Palavra e viver com fé verdadeira.\nQue eu não seja guiado apenas por medo, ansiedade ou emoção, mas pela direção que vem de Ti.\nFortalece meu coração, dá-me sabedoria e ensina-me a praticar aquilo que a Bíblia revela.\n\nVersículos para lembrar:\n${verseBlock(selected.slice(0,3))}\n\nEm nome de Jesus, amém.`;
+      }
+
+      if(mode === "estudo"){
+        return `Estudo bíblico inteligente\n\nTema: ${input}\nTema detectado: ${theme}\n\n1. Introdução\n${getMainIdea(theme)}\n\n2. Textos principais\n${verseBlock(selected)}\n\n3. Explicação\nEsses textos mostram que a Bíblia oferece direção espiritual e prática. O foco não é apenas conhecer uma resposta, mas permitir que a Palavra transforme pensamentos, atitudes e decisões.\n\n4. Aplicações práticas\n${application}\n\n5. Perguntas para estudo\n- O que esses versículos revelam sobre Deus?\n- Que atitude preciso mudar?\n- Qual promessa ou direção devo guardar?\n- Como posso praticar isso hoje?\n\n6. Conclusão\nO estudo bíblico verdadeiro une leitura, oração e prática. Volte aos versículos, medite e aplique com constância.`;
+      }
+
+      return `Resposta bíblica inteligente\n\n${intro}\n\nPergunta: ${input}\nTema identificado: ${theme}\n\nResposta:\n${getMainIdea(theme)}\n\nVersículos relacionados:\n${verseBlock(selected)}\n\nOrientação prática:\n${application}\n\nConclusão:\nUse esses textos como base para oração, reflexão e decisão.`;
+    }
+
+    function askAI(){
+      const mode=el("aiMode").value;
+      const input=el("aiInput").value.trim();
+      if(!input) return toast("Digite sua pergunta");
+      const answer=buildFreeAnswer(mode,input);
+      state.lastAiAnswer=answer;
+      el("aiOutput").textContent=answer;
+    }
+
+    function saveAiAsNote(){
+      const text=state.lastAiAnswer.trim();
+      if(!text) return toast("Ainda não há resposta");
+      const ref=el("noteRef").value.trim()||"IA inteligente - estudo";
+      el("noteRef").value=ref;
+      el("noteText").value=text;
+      saveNote();
+      switchView("anotacoes");
+    }
+
+    let deferredPrompt=null;
+    window.addEventListener("beforeinstallprompt", (e)=>{
+      e.preventDefault();
+      deferredPrompt=e;
+      const btn=el("installBtn");
+      if(btn) btn.style.display="inline-block";
+    });
+    const installButton = el("installBtn");
+    if(installButton){
+      installButton.addEventListener("click", async ()=>{
+        if(!deferredPrompt) return toast("Instalação indisponível agora");
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt=null;
+        installButton.style.display="none";
+      });
+    }
+    window.addEventListener("appinstalled", ()=>{
+      toast("App instalado com sucesso");
+      if(installButton) installButton.style.display="none";
+    });
+    if("serviceWorker" in navigator){
+      window.addEventListener("load", ()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+    }
+
+document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
+      el("view-" + view).classList.add("active");
+      document.querySelector(`.menu-btn[data-view="${view}"]`).classList.add("active");
+      if(view === "favoritos") renderFavorites();
+      if(view === "anotacoes") renderNotes();
+      if(view === "plano") renderPlan();
+      if(view === "busca") renderSearch();
+    }
+
+    function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
+    function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
+    function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+    function findByRef(ref){ return state.flatVerses.find(v => refFor(v).toLowerCase() === ref.toLowerCase()); }
+
+    async function loadBible() {
+      try {
+        const res = await fetch("./data/acf_biblia_ptbr.json", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+        const data = await res.json();
+
+        state.books = data.books || [];
+        state.flatVerses = [];
+
+        state.books.forEach(book => {
+          (book.chapters || []).forEach((chapter, cIndex) => {
+            (chapter || []).forEach((verse, vIndex) => {
+              state.flatVerses.push({
+                book: book.name,
+                chapter: cIndex + 1,
+                verse: vIndex + 1,
+                text: verse
+              });
+            });
+          });
+        });
+
+        if (!state.books.length) throw new Error("JSON sem livros");
+
+        el("statusText").textContent = `Bíblia carregada: ${state.flatVerses.length} versículos`;
+        populateBooks();
+        renderChapter();
+      } catch (e) {
+        console.error(e);
+        el("statusText").textContent = "Erro ao carregar JSON da Bíblia";
+        el("chapterList").innerHTML = `<div class="item">Não foi possível carregar <b>data/acf_biblia_ptbr.json</b>.</div>`;
+      }
+    }
+
+    function populateBooks(){
+      const select = el("bookSelect");
+      select.innerHTML = state.books.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+      state.currentBook = state.books[0]?.name || "";
+      select.value = state.currentBook;
+      populateChapters();
+    }
+
+    function populateChapters(){
+      const chapters = allChapters(state.currentBook);
+      const select = el("chapterSelect");
+      select.innerHTML = chapters.map(c => `<option value="${c}">${c}</option>`).join("");
+      state.currentChapter = chapters[0] || 1;
+      select.value = String(state.currentChapter);
+    }
+
+    function renderVerseCard(v, showRemove=false){
+      const div = document.createElement("div");
+      div.className = "verse-card";
+      div.innerHTML = `<div class="ref">${refFor(v)}</div><div>${v.text}</div>`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const fav = document.createElement("button");
+      fav.className = "small-btn" + (state.favorites.includes(refFor(v)) ? " saved" : "");
+      fav.textContent = state.favorites.includes(refFor(v)) ? "Favorito" : "Salvar favorito";
+      fav.onclick = () => toggleFavorite(refFor(v));
+
+      const note = document.createElement("button");
+      note.className = "small-btn ghost";
+      note.textContent = "Anotar";
+      note.onclick = () => {
+        el("noteRef").value = refFor(v);
+        el("noteText").value = state.notes[refFor(v)] || "";
+        switchView("anotacoes");
+      };
+
+      const ai = document.createElement("button");
+      ai.className = "small-btn ghost";
+      ai.textContent = "Explicar grátis";
+      ai.onclick = () => {
+        el("aiMode").value = "explicar";
+        el("aiInput").value = `${refFor(v)}: ${v.text}`;
+        switchView("ia");
+      };
+
+      actions.appendChild(fav);
+      actions.appendChild(note);
+      actions.appendChild(ai);
+
+      if(showRemove){
+        const rem = document.createElement("button");
+        rem.className = "small-btn ghost";
+        rem.textContent = "Remover";
+        rem.onclick = () => toggleFavorite(refFor(v));
+        actions.appendChild(rem);
+      }
+
+      div.appendChild(actions);
+      return div;
+    }
+
+    function renderChapter(){
+      el("chapterTitle").textContent = `${state.currentBook} ${state.currentChapter}`;
+      const root = el("chapterList");
+      root.innerHTML = "";
+      const verses = chapterVerses(state.currentBook, state.currentChapter);
+      if(!verses.length){
+        root.innerHTML = '<div class="item">Nenhum versículo encontrado.</div>';
+        return;
+      }
+      verses.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderSearch(){
+      const term = el("searchInput").value.trim().toLowerCase();
+      const root = el("searchList");
+      root.innerHTML = "";
+      if(!term){
+        root.innerHTML = '<div class="item">Digite algo para buscar.</div>';
+        return;
+      }
+      const results = state.flatVerses.filter(v =>
+        refFor(v).toLowerCase().includes(term) || String(v.text).toLowerCase().includes(term)
+      ).slice(0, 200);
+
+      if(!results.length){
+        root.innerHTML = '<div class="item">Nenhum resultado encontrado.</div>';
+        return;
+      }
+      results.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderFavorites(){
+      const root = el("favoritesList");
+      root.innerHTML = "";
+      if(!state.favorites.length){
+        root.innerHTML = '<div class="item">Nenhum favorito salvo.</div>';
+        return;
+      }
+      state.favorites.forEach(ref => {
+        const v = state.flatVerses.find(x => refFor(x) === ref);
+        if(v) root.appendChild(renderVerseCard(v, true));
+      });
+    }
+
+    function renderNotes(){
+      const root = el("notesList");
+      root.innerHTML = "";
+      const entries = Object.entries(state.notes);
+      if(!entries.length){
+        root.innerHTML = '<div class="item">Nenhuma anotação salva.</div>';
+        return;
+      }
+      entries.forEach(([ref, text]) => {
+        const item = document.createElement("div");
+        item.className = "item";
+        item.innerHTML = `<div class="item-title">${ref}</div><div>${String(text).slice(0, 280)}</div>`;
+        item.onclick = () => {
+          el("noteRef").value = ref;
+          el("noteText").value = text;
+        };
+        root.appendChild(item);
+      });
+    }
+
+    function renderPlan(){
+      const root = el("planList");
+      root.innerHTML = "";
+      planDays.forEach((day, i) => {
+        const done = !!state.plan[i];
+        const item = document.createElement("div");
+        item.className = "plan-item" + (done ? " done" : "");
+        item.innerHTML = `<div class="item-title">${day}</div><div>${done ? "Concluído" : "Pendente"}</div>`;
+        const btn = document.createElement("button");
+        btn.textContent = done ? "Marcar pendente" : "Concluir";
+        btn.style.marginTop = "10px";
+        btn.onclick = () => togglePlan(i);
+        item.appendChild(btn);
+        root.appendChild(item);
+      });
+    }
+
+    function toggleFavorite(ref){
+      if(state.favorites.includes(ref)){
+        state.favorites = state.favorites.filter(x => x !== ref);
+        toast("Favorito removido");
+      } else {
+        state.favorites.unshift(ref);
+        toast("Favorito salvo");
+      }
+      saveLocal();
+      renderFavorites();
+      renderChapter();
+      renderSearch();
+    }
+
+    function saveNote(){
+      const ref = el("noteRef").value.trim();
+      const text = el("noteText").value.trim();
+      if(!ref) return toast("Digite a referência");
+      if(text) state.notes[ref] = text; else delete state.notes[ref];
+      saveLocal();
+      renderNotes();
+      toast(text ? "Anotação salva" : "Anotação removida");
+    }
+
+    function togglePlan(i){
+      state.plan[i] = !state.plan[i];
+      saveLocal();
+      renderPlan();
+    }
+
+    function resetPlan(){
+      state.plan = {};
+      saveLocal();
+      renderPlan();
+      toast("Plano resetado");
+    }
+
+    
+    function normalizeText(text){
+      return String(text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function randomPick(list){
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function getThemeRefs(input){
+      const text = normalizeText(input);
+      for(const key of Object.keys(keywordThemes)){
+        if(text.includes(normalizeText(key))) return keywordThemes[key];
+      }
+
+      const words = text.split(/\s+/).filter(w => w.length > 3);
+      return state.flatVerses
+        .filter(v => words.some(w => normalizeText(v.text).includes(w)))
+        .slice(0, 5)
+        .map(refFor);
+    }
+
+    function makeVerseSnippet(ref){
+      const verse = findByRef(ref);
+      if(!verse) return `- ${ref}`;
+      return `- ${ref}: ${verse.text}`;
+    }
+
+    function findRelatedVerses(input, limit=5){
+      const text = normalizeText(input);
+      const words = text.split(/\s+/).filter(w => w.length > 3);
+
+      return state.flatVerses.map(v => {
+        const verseText = normalizeText(`${refFor(v)} ${v.text}`);
+        let score = 0;
+        words.forEach(w => {
+          if(verseText.includes(w)) score += 1;
+        });
+        return {v, score};
+      }).filter(x => x.score > 0)
+        .sort((a,b) => b.score - a.score)
+        .slice(0, limit)
+        .map(x => x.v);
+    }
+
+    function identifyDirectVerse(input){
+      const m = input.match(/([1-3]?\s?[A-Za-zÁ-ú]+)\s+(\d+):(\d+)/i);
+      if(!m) return null;
+
+      const rawBook = normalizeText(m[1].trim());
+      const chapter = Number(m[2]);
+      const verse = Number(m[3]);
+
+      return state.flatVerses.find(v =>
+        normalizeText(v.book).includes(rawBook) &&
+        v.chapter === chapter &&
+        v.verse === verse
+      ) || null;
+    }
+
+    function buildFreeAnswer(mode,input){
+      const relatedVerses = findRelatedVerses(input, 5);
+      const themeRefs = getThemeRefs(input);
+      const directVerse = identifyDirectVerse(input);
+
+      const intros = [
+        "Vamos olhar para esse tema à luz da Palavra de Deus.",
+        "Esse assunto merece ser tratado com cuidado, fé e equilíbrio.",
+        "A Bíblia nos conduz a uma resposta de confiança, obediência e esperança.",
+        "Esse tema pode ser entendido melhor quando observamos o caráter de Deus.",
+        "A Palavra de Deus ajuda a enxergar esse assunto com mais clareza e direção."
+      ];
+
+      const applications = [
+        "- ore antes de tomar decisões\n- medite no texto durante o dia\n- transforme a leitura em uma atitude prática",
+        "- entregue essa área a Deus\n- busque agir com fé e sabedoria\n- permaneça firme mesmo quando houver dificuldade",
+        "- leia o texto com calma\n- pergunte o que Deus está ensinando\n- pratique uma pequena mudança hoje",
+        "- confie no cuidado de Deus\n- evite agir apenas pela emoção\n- procure viver aquilo que a Palavra ensina",
+        "- escolha um versículo para memorizar\n- escreva uma anotação\n- aplique esse ensino em uma situação real"
+      ];
+
+      const verseBlock = relatedVerses.length
+        ? relatedVerses.map(v => `- ${refFor(v)}: ${v.text}`).join("\n")
+        : themeRefs.length
+          ? themeRefs.map(makeVerseSnippet).join("\n")
+          : "- Salmos 119:105\n- João 14:6\n- Romanos 15:4";
+
+      if(mode==="explicar"){
+        const v = directVerse;
+        const ref = v ? refFor(v) : "trecho informado";
+        const txt = v ? v.text : input;
+
+        const focus = randomPick([
+          "O ponto central é perceber o que Deus revela sobre si mesmo e como isso deve moldar a nossa resposta.",
+          "Esse texto chama o leitor a enxergar a fidelidade de Deus e a responder com confiança.",
+          "A passagem mostra que a fé bíblica não é apenas sentimento, mas direção para a vida prática.",
+          "O ensino principal é que a Palavra de Deus orienta o coração e corrige o caminho.",
+          "A mensagem do texto conduz a uma vida mais dependente de Deus e mais firme na fé."
+        ]);
+
+        return `Explicação bíblica\n\nReferência: ${ref}\n\nTexto:\n${txt}\n\nSignificado:\n${focus}\n\nContexto simples:\nEste versículo deve ser lido considerando a mensagem geral da Bíblia: Deus chama o ser humano para perto Dele, ensina o caminho correto e fortalece quem confia em Sua Palavra.\n\nAplicação prática:\n${randomPick(applications)}\n\nVersículos relacionados:\n${verseBlock}\n\nResumo:\nA mensagem principal é confiar em Deus, obedecer à Sua Palavra e aplicar esse ensino de forma prática.`;
+      }
+
+      if(mode==="reflexao"){
+        const openings = [
+          "Nem sempre entendemos tudo o que acontece, mas a Palavra nos lembra que Deus continua no controle.",
+          "A vida cristã é fortalecida quando paramos para ouvir a voz de Deus por meio das Escrituras.",
+          "Há momentos em que a fé precisa ser alimentada pela lembrança das promessas de Deus.",
+          "A Bíblia não apenas informa; ela transforma o coração de quem a recebe com humildade.",
+          "Quando buscamos direção na Palavra, encontramos firmeza mesmo em dias difíceis."
+        ];
+
+        return `Reflexão\n\nTema: ${input}\n\n${randomPick(openings)}\n\n${randomPick(intros)}\n\nVersículos relacionados:\n${verseBlock}\n\nAplicação para hoje:\n${randomPick(applications)}\n\nConclusão:\nPermaneça firme. Deus usa a Sua Palavra para trazer direção, consolo e crescimento espiritual.`;
+      }
+
+      if(mode==="oracao"){
+        const prayers = [
+          `Senhor Deus, eu coloco diante de Ti este tema: ${input}. Guia meu coração, fortalece minha fé e ajuda-me a viver segundo a Tua Palavra. Dá-me sabedoria para agir com equilíbrio e confiança. Em nome de Jesus, amém.`,
+          `Pai amado, ajuda-me a compreender a Tua vontade sobre ${input}. Que a minha mente seja guiada pela Tua verdade e que meu coração encontre descanso em Ti. Ensina-me a obedecer e a confiar. Amém.`,
+          `Senhor, diante deste assunto, peço direção, paz e firmeza. Que a Tua Palavra ilumine meus passos e me ajude a tomar decisões agradáveis a Ti. Fortalece minha vida espiritual. Amém.`,
+          `Deus eterno, que eu não caminhe pela ansiedade nem pela dúvida, mas pela fé. Usa este tema para me aproximar mais de Ti e para transformar minha vida. Em nome de Jesus, amém.`,
+          `Pai, coloca em mim um coração sensível à Tua voz. Que este tema me leve a crescer, perdoar, confiar e viver com mais obediência. Amém.`
+        ];
+        return `Oração\n\n${randomPick(prayers)}`;
+      }
+
+      if(mode==="estudo"){
+        const titles = [
+          `Estudo bíblico sobre ${input}`,
+          `O que a Bíblia ensina sobre ${input}`,
+          `Aprendendo com a Palavra: ${input}`,
+          `Crescendo espiritualmente em ${input}`,
+          `Direção bíblica para ${input}`
+        ];
+
+        return `${randomPick(titles)}\n\nIntrodução:\n${randomPick(intros)}\n\nVersículos principais:\n${verseBlock}\n\n1. O que podemos aprender\nA Bíblia mostra que Deus se importa com a vida prática, com o coração e com as decisões do ser humano. Esse tema deve ser observado com fé, humildade e disposição para obedecer.\n\n2. Como aplicar\n${randomPick(applications)}\n\n3. Perguntas para reflexão\n- O que Deus está me ensinando com esse tema?\n- Que atitude preciso corrigir?\n- Como posso viver isso hoje?\n- Que versículo posso memorizar?\n\nConclusão:\nO estudo bíblico se torna poderoso quando sai da teoria e entra na prática. Leia, ore, medite e aplique.`;
+      }
+
+      return `Resposta bíblica\n\nPergunta: ${input}\n\n${randomPick(intros)}\n\nVersículos relacionados:\n${verseBlock}\n\nOrientação:\n${randomPick(applications)}\n\nResposta final:\nBusque esse assunto com oração e compare os textos bíblicos. A Palavra de Deus traz direção segura para quem deseja viver com fé e sabedoria.`;
+    }
+
+    function askAI(){
+      const mode=el("aiMode").value;
+      const input=el("aiInput").value.trim();
+      if(!input) return toast("Digite sua pergunta");
+      const answer=buildFreeAnswer(mode,input);
+      state.lastAiAnswer=answer;
+      el("aiOutput").textContent=answer;
+    }
+
+    function saveAiAsNote(){
+      const text=state.lastAiAnswer.trim();
+      if(!text) return toast("Ainda não há resposta");
+      const ref=el("noteRef").value.trim()||"IA grátis - estudo";
+      el("noteRef").value=ref;
+      el("noteText").value=text;
+      saveNote();
+      switchView("anotacoes");
+    }
+
+    let deferredPrompt=null;
+    window.addEventListener("beforeinstallprompt", (e)=>{
+      e.preventDefault();
+      deferredPrompt=e;
+      const btn=el("installBtn");
+      if(btn) btn.style.display="inline-block";
+    });
+    const installButton = el("installBtn");
+    if(installButton){
+      installButton.addEventListener("click", async ()=>{
+        if(!deferredPrompt) return toast("Instalação indisponível agora");
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt=null;
+        installButton.style.display="none";
+      });
+    }
+    window.addEventListener("appinstalled", ()=>{
+      toast("App instalado com sucesso");
+      if(installButton) installButton.style.display="none";
+    });
+    if("serviceWorker" in navigator){
+      window.addEventListener("load", ()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+    }
+
+document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
       el("view-" + view).classList.add("active");
       document.querySelector(`.menu-btn[data-view="${view}"]`).classList.add("active");
       if(view === "favoritos") renderFavorites();

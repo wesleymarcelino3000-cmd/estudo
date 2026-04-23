@@ -1,25 +1,16 @@
-BÍBLIA ACF IA GRÁTIS
+BÍBLIA ACF - IA MAIS INTELIGENTE
 
-Esse pacote funciona sem OpenAI e sem pagar API.
+Esta versão continua grátis, sem OpenAI e sem chave.
 
-Estrutura:
-- index.html
-- data/acf_biblia_ptbr.json
+Melhorias:
+- detecta tema automaticamente
+- busca versículos dentro do JSON da Bíblia
+- monta resposta baseada nos versículos encontrados
+- explica versículos de forma mais personalizada
+- gera estudo bíblico com perguntas e aplicação
+- mantém PWA instalável
 
-Recursos:
-- leitura por livro e capítulo
-- busca
-- favoritos locais
-- anotações locais
-- plano de leitura
-- IA local grátis:
-  - chat bíblico
-  - explicação
-  - reflexão
-  - oração
-  - estudo
-
-Como usar:
-1. descompacte
-2. suba no GitHub mantendo a pasta data
-3. faça deploy no Vercel
+Depois de subir no GitHub/Vercel:
+1. Faça Redeploy
+2. Use CTRL + F5 no navegador
+3. Teste: "o que a Bíblia fala sobre ansiedade?"

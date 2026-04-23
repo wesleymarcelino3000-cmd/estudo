@@ -1,7 +1,8 @@
 const CONFIG = window.APP_CONFIG || {};
-const sb = (CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && window.supabase)
-  ? window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey)
-  : null;
+const sb =
+  CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && window.supabase
+    ? window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey)
+    : null;
 
 const state = {
   user: null,
@@ -17,47 +18,89 @@ const state = {
 };
 
 const planDays = [
-  "Dia 1 - Mateus 5","Dia 2 - João 3","Dia 3 - Salmos 23","Dia 4 - Romanos 8","Dia 5 - Filipenses 4",
-  "Dia 6 - Provérbios 3","Dia 7 - Isaías 41","Dia 8 - João 14","Dia 9 - Salmos 91","Dia 10 - Tiago 1"
+  "Dia 1 - Mateus 5",
+  "Dia 2 - João 3",
+  "Dia 3 - Salmos 23",
+  "Dia 4 - Romanos 8",
+  "Dia 5 - Filipenses 4",
+  "Dia 6 - Provérbios 3",
+  "Dia 7 - Isaías 41",
+  "Dia 8 - João 14",
+  "Dia 9 - Salmos 91",
+  "Dia 10 - Tiago 1"
 ];
 
-function el(id){ return document.getElementById(id); }
-function saveLocal(){
+function el(id) {
+  return document.getElementById(id);
+}
+
+function saveLocal() {
   localStorage.setItem("acfjson_theme", state.theme);
   localStorage.setItem("acfjson_favorites", JSON.stringify(state.favorites));
   localStorage.setItem("acfjson_notes", JSON.stringify(state.notes));
   localStorage.setItem("acfjson_plan", JSON.stringify(state.plan));
 }
-function toast(msg){
+
+function toast(msg) {
   const t = el("toast");
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"), 1800);
+  setTimeout(() => t.classList.remove("show"), 1800);
 }
-function setTheme(){ document.body.className = state.theme === "light" ? "light" : ""; }
-function setAuthStatus(){ el("authStatus").textContent = state.user ? `Logado: ${state.user.email}` : "Modo local"; }
-function switchView(view){
-  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
-  document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
+
+function setTheme() {
+  document.body.className = state.theme === "light" ? "light" : "";
+}
+
+function setAuthStatus() {
+  el("authStatus").textContent = state.user
+    ? `Logado: ${state.user.email}`
+    : "Modo local";
+}
+
+function switchView(view) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.querySelectorAll(".menu-btn").forEach(v => v.classList.remove("active"));
+
   el("view-" + view).classList.add("active");
   document.querySelector(`.menu-btn[data-view="${view}"]`).classList.add("active");
-  if(view === "favoritos") renderFavorites();
-  if(view === "anotacoes") renderNotes();
-  if(view === "plano") renderPlan();
-  if(view === "busca") renderSearch();
+
+  if (view === "favoritos") renderFavorites();
+  if (view === "anotacoes") renderNotes();
+  if (view === "plano") renderPlan();
+  if (view === "busca") renderSearch();
 }
 window.switchView = switchView;
 
-function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
-function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
-function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+function refFor(v) {
+  return `${v.book} ${v.chapter}:${v.verse}`;
+}
 
-async function loadBible(){
-  try{
+function chapterVerses(book, chapter) {
+  return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter));
+}
+
+function allChapters(book) {
+  return [
+    ...new Set(
+      state.flatVerses.filter(v => v.book === book).map(v => v.chapter)
+    )
+  ].sort((a, b) => a - b);
+}
+
+async function loadBible() {
+  try {
     const res = await fetch("./data/acf_biblia_ptbr.json", { cache: "no-store" });
+
+    if (!res.ok) {
+      throw new Error(`Erro HTTP ${res.status}`);
+    }
+
     const data = await res.json();
+
     state.books = data.books || [];
     state.flatVerses = [];
+
     state.books.forEach(book => {
       (book.chapters || []).forEach((chapter, cIndex) => {
         (chapter || []).forEach((verse, vIndex) => {
@@ -70,40 +113,68 @@ async function loadBible(){
         });
       });
     });
+
+    if (!state.books.length) {
+      throw new Error("JSON sem livros");
+    }
+
     el("statusText").textContent = `Bíblia carregada: ${state.flatVerses.length} versículos`;
+
     populateBooks();
     renderChapter();
-  }catch(e){
+  } catch (e) {
     console.error(e);
     el("statusText").textContent = "Erro ao carregar JSON da Bíblia";
+    el("chapterList").innerHTML = `
+      <div class="item">
+        Não foi possível carregar <b>data/acf_biblia_ptbr.json</b>.
+      </div>
+    `;
   }
 }
 
-function populateBooks(){
+function populateBooks() {
   const select = el("bookSelect");
-  select.innerHTML = state.books.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+  select.innerHTML = state.books
+    .map(b => `<option value="${b.name}">${b.name}</option>`)
+    .join("");
+
   state.currentBook = state.books[0]?.name || "";
   select.value = state.currentBook;
+
   populateChapters();
 }
-function populateChapters(){
+
+function populateChapters() {
   const chapters = allChapters(state.currentBook);
   const select = el("chapterSelect");
-  select.innerHTML = chapters.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  select.innerHTML = chapters
+    .map(c => `<option value="${c}">${c}</option>`)
+    .join("");
+
   state.currentChapter = chapters[0] || 1;
   select.value = String(state.currentChapter);
 }
 
-function renderVerseCard(v, showRemove=false){
+function renderVerseCard(v, showRemove = false) {
   const div = document.createElement("div");
   div.className = "verse-card";
-  div.innerHTML = `<div class="ref">${refFor(v)}</div><div>${v.text}</div>`;
+  div.innerHTML = `
+    <div class="ref">${refFor(v)}</div>
+    <div>${v.text}</div>
+  `;
+
   const actions = document.createElement("div");
   actions.className = "actions";
+
   const fav = document.createElement("button");
   fav.className = "small-btn" + (state.favorites.includes(refFor(v)) ? " saved" : "");
-  fav.textContent = state.favorites.includes(refFor(v)) ? "Favorito" : "Salvar favorito";
+  fav.textContent = state.favorites.includes(refFor(v))
+    ? "Favorito"
+    : "Salvar favorito";
   fav.onclick = () => toggleFavorite(refFor(v));
+
   const note = document.createElement("button");
   note.className = "small-btn ghost";
   note.textContent = "Anotar";
@@ -112,15 +183,7 @@ function renderVerseCard(v, showRemove=false){
     el("noteText").value = state.notes[refFor(v)] || "";
     switchView("anotacoes");
   };
-  actions.appendChild(fav);
-  actions.appendChild(note);
-  if(showRemove){
-    const rem = document.createElement("button");
-    rem.className = "small-btn ghost";
-    rem.textContent = "Remover";
-    rem.onclick = () => toggleFavorite(refFor(v));
-    actions.appendChild(rem);
-  }
+
   const ai = document.createElement("button");
   ai.className = "small-btn ghost";
   ai.textContent = "Explicar com IA";
@@ -129,56 +192,97 @@ function renderVerseCard(v, showRemove=false){
     el("aiInput").value = `Explique ${refFor(v)}: ${v.text}`;
     switchView("ia");
   };
+
+  actions.appendChild(fav);
+  actions.appendChild(note);
   actions.appendChild(ai);
+
+  if (showRemove) {
+    const rem = document.createElement("button");
+    rem.className = "small-btn ghost";
+    rem.textContent = "Remover";
+    rem.onclick = () => toggleFavorite(refFor(v));
+    actions.appendChild(rem);
+  }
+
   div.appendChild(actions);
   return div;
 }
 
-function renderChapter(){
+function renderChapter() {
   el("chapterTitle").textContent = `${state.currentBook} ${state.currentChapter}`;
+
   const root = el("chapterList");
   root.innerHTML = "";
-  chapterVerses(state.currentBook, state.currentChapter).forEach(v => root.appendChild(renderVerseCard(v)));
+
+  const verses = chapterVerses(state.currentBook, state.currentChapter);
+
+  if (!verses.length) {
+    root.innerHTML = '<div class="item">Nenhum versículo encontrado.</div>';
+    return;
+  }
+
+  verses.forEach(v => root.appendChild(renderVerseCard(v)));
 }
-function renderSearch(){
+
+function renderSearch() {
   const term = el("searchInput").value.trim().toLowerCase();
   const root = el("searchList");
   root.innerHTML = "";
-  if(!term){
+
+  if (!term) {
     root.innerHTML = '<div class="item">Digite algo para buscar.</div>';
     return;
   }
-  const results = state.flatVerses.filter(v => refFor(v).toLowerCase().includes(term) || String(v.text).toLowerCase().includes(term)).slice(0, 200);
-  if(!results.length){
+
+  const results = state.flatVerses
+    .filter(v =>
+      refFor(v).toLowerCase().includes(term) ||
+      String(v.text).toLowerCase().includes(term)
+    )
+    .slice(0, 200);
+
+  if (!results.length) {
     root.innerHTML = '<div class="item">Nenhum resultado encontrado.</div>';
     return;
   }
+
   results.forEach(v => root.appendChild(renderVerseCard(v)));
 }
-function renderFavorites(){
+
+function renderFavorites() {
   const root = el("favoritesList");
   root.innerHTML = "";
-  if(!state.favorites.length){
+
+  if (!state.favorites.length) {
     root.innerHTML = '<div class="item">Nenhum favorito salvo.</div>';
     return;
   }
+
   state.favorites.forEach(ref => {
     const v = state.flatVerses.find(x => refFor(x) === ref);
-    if(v) root.appendChild(renderVerseCard(v, true));
+    if (v) root.appendChild(renderVerseCard(v, true));
   });
 }
-function renderNotes(){
+
+function renderNotes() {
   const root = el("notesList");
   root.innerHTML = "";
+
   const entries = Object.entries(state.notes);
-  if(!entries.length){
+
+  if (!entries.length) {
     root.innerHTML = '<div class="item">Nenhuma anotação salva.</div>';
     return;
   }
+
   entries.forEach(([ref, text]) => {
     const item = document.createElement("div");
     item.className = "item";
-    item.innerHTML = `<div class="item-title">${ref}</div><div>${String(text).slice(0, 280)}</div>`;
+    item.innerHTML = `
+      <div class="item-title">${ref}</div>
+      <div>${String(text).slice(0, 280)}</div>
+    `;
     item.onclick = () => {
       el("noteRef").value = ref;
       el("noteText").value = text;
@@ -186,132 +290,234 @@ function renderNotes(){
     root.appendChild(item);
   });
 }
-function renderPlan(){
+
+function renderPlan() {
   const root = el("planList");
   root.innerHTML = "";
+
   planDays.forEach((day, i) => {
     const done = !!state.plan[i];
     const item = document.createElement("div");
     item.className = "plan-item" + (done ? " done" : "");
-    item.innerHTML = `<div class="item-title">${day}</div><div>${done ? "Concluído" : "Pendente"}</div>`;
+    item.innerHTML = `
+      <div class="item-title">${day}</div>
+      <div>${done ? "Concluído" : "Pendente"}</div>
+    `;
+
     const btn = document.createElement("button");
     btn.textContent = done ? "Marcar pendente" : "Concluir";
     btn.style.marginTop = "10px";
     btn.onclick = () => togglePlan(i);
+
     item.appendChild(btn);
     root.appendChild(item);
   });
 }
 
-async function register(){
-  if(!sb) return toast("Supabase não configurado");
-  const { error } = await sb.auth.signUp({ email: el("email").value.trim(), password: el("password").value.trim() });
-  if(error) return toast(error.message);
+async function register() {
+  if (!sb) return toast("Supabase não configurado");
+
+  const { error } = await sb.auth.signUp({
+    email: el("email").value.trim(),
+    password: el("password").value.trim()
+  });
+
+  if (error) return toast(error.message);
   toast("Cadastro enviado");
 }
-async function login(){
-  if(!sb) return toast("Supabase não configurado");
-  const { data, error } = await sb.auth.signInWithPassword({ email: el("email").value.trim(), password: el("password").value.trim() });
-  if(error) return toast(error.message);
+
+async function login() {
+  if (!sb) return toast("Supabase não configurado");
+
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: el("email").value.trim(),
+    password: el("password").value.trim()
+  });
+
+  if (error) return toast(error.message);
+
   state.user = data.user;
   setAuthStatus();
   await syncFromCloud();
   toast("Login realizado");
 }
-async function logout(){
-  if(sb) await sb.auth.signOut();
+
+async function logout() {
+  if (sb) await sb.auth.signOut();
   state.user = null;
   setAuthStatus();
   toast("Sessão encerrada");
 }
-async function checkSession(){
-  if(!sb) return;
+
+async function checkSession() {
+  if (!sb) return;
+
   const { data } = await sb.auth.getUser();
   state.user = data?.user || null;
   setAuthStatus();
-  if(state.user) await syncFromCloud();
+
+  if (state.user) {
+    await syncFromCloud();
+  }
 }
-async function syncFromCloud(){
-  if(!sb || !state.user) return;
-  const favs = await sb.from("favorites").select("verse_key").eq("user_id", state.user.id);
-  if(!favs.error) state.favorites = (favs.data || []).map(x=>x.verse_key);
-  const notes = await sb.from("notes").select("verse_key, content").eq("user_id", state.user.id);
-  if(!notes.error){
+
+async function syncFromCloud() {
+  if (!sb || !state.user) return;
+
+  const favs = await sb
+    .from("favorites")
+    .select("verse_key")
+    .eq("user_id", state.user.id);
+
+  if (!favs.error) {
+    state.favorites = (favs.data || []).map(x => x.verse_key);
+  }
+
+  const notes = await sb
+    .from("notes")
+    .select("verse_key, content")
+    .eq("user_id", state.user.id);
+
+  if (!notes.error) {
     state.notes = {};
-    (notes.data || []).forEach(x => state.notes[x.verse_key] = x.content);
+    (notes.data || []).forEach(x => {
+      state.notes[x.verse_key] = x.content;
+    });
   }
-  const plan = await sb.from("reading_progress").select("day_index, done").eq("user_id", state.user.id);
-  if(!plan.error){
+
+  const plan = await sb
+    .from("reading_progress")
+    .select("day_index, done")
+    .eq("user_id", state.user.id);
+
+  if (!plan.error) {
     state.plan = {};
-    (plan.data || []).forEach(x => state.plan[x.day_index] = !!x.done);
+    (plan.data || []).forEach(x => {
+      state.plan[x.day_index] = !!x.done;
+    });
   }
+
   saveLocal();
-  renderFavorites(); renderNotes(); renderPlan();
+  renderFavorites();
+  renderNotes();
+  renderPlan();
 }
-async function toggleFavorite(ref){
-  if(state.favorites.includes(ref)){
+
+async function toggleFavorite(ref) {
+  if (state.favorites.includes(ref)) {
     state.favorites = state.favorites.filter(x => x !== ref);
-    if(state.user && sb) await sb.from("favorites").delete().eq("user_id", state.user.id).eq("verse_key", ref);
+
+    if (state.user && sb) {
+      await sb
+        .from("favorites")
+        .delete()
+        .eq("user_id", state.user.id)
+        .eq("verse_key", ref);
+    }
+
     toast("Favorito removido");
   } else {
     state.favorites.unshift(ref);
-    if(state.user && sb){
+
+    if (state.user && sb) {
       const m = ref.match(/^(.*) (\d+):(\d+)$/);
-      await sb.from("favorites").upsert({
-        user_id: state.user.id,
-        verse_key: ref,
-        book: m ? m[1] : ref,
-        chapter: m ? Number(m[2]) : 1,
-        verse: m ? Number(m[3]) : 1
-      }, { onConflict: "user_id,verse_key" });
+
+      await sb.from("favorites").upsert(
+        {
+          user_id: state.user.id,
+          verse_key: ref,
+          book: m ? m[1] : ref,
+          chapter: m ? Number(m[2]) : 1,
+          verse: m ? Number(m[3]) : 1
+        },
+        { onConflict: "user_id,verse_key" }
+      );
     }
+
     toast("Favorito salvo");
   }
+
   saveLocal();
-  renderFavorites(); renderChapter(); renderSearch();
+  renderFavorites();
+  renderChapter();
+  renderSearch();
 }
-async function saveNote(){
+
+async function saveNote() {
   const ref = el("noteRef").value.trim();
   const text = el("noteText").value.trim();
-  if(!ref) return toast("Digite a referência");
-  if(text) state.notes[ref] = text; else delete state.notes[ref];
-  if(state.user && sb){
+
+  if (!ref) return toast("Digite a referência");
+
+  if (text) {
+    state.notes[ref] = text;
+  } else {
+    delete state.notes[ref];
+  }
+
+  if (state.user && sb) {
     const m = ref.match(/^(.*) (\d+):(\d+)$/);
-    if(text){
-      await sb.from("notes").upsert({
-        user_id: state.user.id,
-        verse_key: ref,
-        book: m ? m[1] : ref,
-        chapter: m ? Number(m[2]) : 1,
-        verse: m ? Number(m[3]) : 1,
-        content: text
-      }, { onConflict: "user_id,verse_key" });
+
+    if (text) {
+      await sb.from("notes").upsert(
+        {
+          user_id: state.user.id,
+          verse_key: ref,
+          book: m ? m[1] : ref,
+          chapter: m ? Number(m[2]) : 1,
+          verse: m ? Number(m[3]) : 1,
+          content: text
+        },
+        { onConflict: "user_id,verse_key" }
+      );
     } else {
-      await sb.from("notes").delete().eq("user_id", state.user.id).eq("verse_key", ref);
+      await sb
+        .from("notes")
+        .delete()
+        .eq("user_id", state.user.id)
+        .eq("verse_key", ref);
     }
   }
+
   saveLocal();
   renderNotes();
   toast(text ? "Anotação salva" : "Anotação removida");
 }
-async function togglePlan(i){
+
+async function togglePlan(i) {
   state.plan[i] = !state.plan[i];
-  if(state.user && sb){
-    await sb.from("reading_progress").upsert({
-      user_id: state.user.id,
-      day_index: i,
-      done: !!state.plan[i]
-    }, { onConflict: "user_id,day_index" });
+
+  if (state.user && sb) {
+    await sb.from("reading_progress").upsert(
+      {
+        user_id: state.user.id,
+        day_index: i,
+        done: !!state.plan[i]
+      },
+      { onConflict: "user_id,day_index" }
+    );
   }
+
   saveLocal();
   renderPlan();
 }
-async function resetPlan(){
+
+async function resetPlan() {
   state.plan = {};
-  if(state.user && sb) await sb.from("reading_progress").delete().eq("user_id", state.user.id);
-  saveLocal(); renderPlan(); toast("Plano resetado");
+
+  if (state.user && sb) {
+    await sb
+      .from("reading_progress")
+      .delete()
+      .eq("user_id", state.user.id);
+  }
+
+  saveLocal();
+  renderPlan();
+  toast("Plano resetado");
 }
-function systemPrompt(mode){
+
+function systemPrompt(mode) {
   const map = {
     chat: "Responda em português do Brasil como um assistente bíblico respeitoso. Use linguagem simples e objetiva.",
     explicar: "Explique o versículo ou trecho pedido em português do Brasil com contexto, significado e aplicação prática.",
@@ -319,47 +525,94 @@ function systemPrompt(mode){
     oracao: "Escreva uma oração em português do Brasil, reverente e ligada ao tema pedido.",
     estudo: "Monte um estudo bíblico completo em português do Brasil com título, introdução, versículos, explicação, aplicação e conclusão."
   };
+
   return map[mode] || map.chat;
 }
-async function askAI(){
+
+async function askAI() {
   const mode = el("aiMode").value;
   const input = el("aiInput").value.trim();
-  if(!input) return toast("Digite sua pergunta");
+
+  if (!input) return toast("Digite sua pergunta");
+
   el("aiOutput").textContent = "Gerando resposta...";
-  try{
+
+  try {
     const response = await fetch("/api/ai", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, system: systemPrompt(mode), input })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        mode,
+        system: systemPrompt(mode),
+        input
+      })
     });
+
     const data = await response.json();
-    if(!response.ok) throw new Error(data.error || "Falha na IA");
+
+    if (!response.ok) {
+      throw new Error(data.error || "Falha na IA");
+    }
+
     state.lastAiAnswer = data.output || "";
     el("aiOutput").textContent = state.lastAiAnswer || "Sem resposta.";
-  }catch(e){
-    el("aiOutput").textContent = "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
+  } catch (e) {
+    el("aiOutput").textContent =
+      "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
   }
 }
-function saveAiAsNote(){
+
+function saveAiAsNote() {
   const text = state.lastAiAnswer.trim();
-  if(!text) return toast("Ainda não há resposta da IA");
+
+  if (!text) return toast("Ainda não há resposta da IA");
+
   const ref = el("noteRef").value.trim() || "IA - estudo";
   el("noteRef").value = ref;
   el("noteText").value = text;
+
   saveNote();
   switchView("anotacoes");
 }
 
-document.querySelectorAll(".menu-btn").forEach(btn => btn.addEventListener("click", ()=>switchView(btn.dataset.view)));
-el("themeToggle").addEventListener("click", ()=>{ state.theme = state.theme === "dark" ? "light" : "dark"; setTheme(); saveLocal(); });
+document.querySelectorAll(".menu-btn").forEach(btn => {
+  btn.addEventListener("click", () => switchView(btn.dataset.view));
+});
+
+el("themeToggle").addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  setTheme();
+  saveLocal();
+});
+
 el("registerBtn").addEventListener("click", register);
 el("loginBtn").addEventListener("click", login);
 el("logoutBtn").addEventListener("click", logout);
-el("bookSelect").addEventListener("change", ()=>{ state.currentBook = el("bookSelect").value; populateChapters(); renderChapter(); });
-el("chapterSelect").addEventListener("change", ()=>{ state.currentChapter = Number(el("chapterSelect").value); renderChapter(); });
-el("searchInput").addEventListener("input", ()=>{ switchView("busca"); renderSearch(); });
+
+el("bookSelect").addEventListener("change", () => {
+  state.currentBook = el("bookSelect").value;
+  populateChapters();
+  renderChapter();
+});
+
+el("chapterSelect").addEventListener("change", () => {
+  state.currentChapter = Number(el("chapterSelect").value);
+  renderChapter();
+});
+
+el("searchInput").addEventListener("input", () => {
+  switchView("busca");
+  renderSearch();
+});
+
 el("saveNoteBtn").addEventListener("click", saveNote);
-el("clearNoteBtn").addEventListener("click", ()=>{ el("noteText").value = ""; saveNote(); });
+el("clearNoteBtn").addEventListener("click", () => {
+  el("noteText").value = "";
+  saveNote();
+});
+
 el("resetPlanBtn").addEventListener("click", resetPlan);
 el("askAiBtn").addEventListener("click", askAI);
 el("saveAiAsNoteBtn").addEventListener("click", saveAiAsNote);

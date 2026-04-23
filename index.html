@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bíblia ACF PRO</title>
+  <meta name="theme-color" content="#111827" />
+  <style>
+    *{box-sizing:border-box}
+    :root{
+      --bg:#0b1020;--panel:#111827;--card:#172033;--border:#263246;
+      --text:#e5e7eb;--muted:#94a3b8;--accent:#d4af37;--accent2:#166534;
+    }
+    body.light{
+      --bg:#f3f4f6;--panel:#ffffff;--card:#ffffff;--border:#d7dce3;
+      --text:#111827;--muted:#6b7280;--accent:#a07c11;--accent2:#166534;
+    }
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+    .brand{display:flex;align-items:center;gap:14px}
+    .brand-mark{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#f6e8ad);color:#111;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700}
+    .brand h1{margin:0;font-size:28px}
+    .brand p{margin:6px 0 0;color:var(--muted)}
+    .layout{display:grid;grid-template-columns:340px 1fr;min-height:calc(100vh - 93px)}
+    .sidebar{padding:18px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:16px}
+    .content{padding:20px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    h1,h2,h3{margin-top:0}
+    label{display:block;margin:10px 0 8px;color:var(--muted);font-size:14px}
+    input,textarea,select,button{font:inherit}
+    input,textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+    button{background:var(--accent);color:#111;border:none;border-radius:12px;padding:11px 14px;font-weight:700;cursor:pointer}
+    .ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .full{width:100%}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .between{justify-content:space-between}
+    .menu{display:grid;gap:10px}
+    .menu-btn.active{outline:2px solid rgba(255,255,255,.16)}
+    .muted{color:var(--muted)}
+    .view{display:none}
+    .view.active{display:block}
+    .list{display:grid;gap:12px}
+    .verse-card,.item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px}
+    .ref,.item-title{font-weight:700;color:var(--accent);margin-bottom:6px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .small-btn{padding:8px 10px;border-radius:10px;font-size:14px}
+    .saved{background:var(--accent2)!important;color:#fff!important}
+    .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .plan-item{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px}
+    .plan-item.done{border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset}
+    .ai-output{margin-top:16px;min-height:180px;white-space:pre-wrap;line-height:1.65;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .toast{position:fixed;right:16px;bottom:16px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+    .toast.show{opacity:1;transform:translateY(0)}
+    @media (max-width:980px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">✝</div>
+      <div>
+        <h1>Bíblia ACF PRO</h1>
+        <p>Leitura, IA, favoritos, anotações, plano e nuvem</p>
+      </div>
+    </div>
+    <button id="themeToggle" class="ghost">Tema</button>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section class="card">
+        <h2>Conta</h2>
+        <input id="email" type="email" placeholder="Seu e-mail" />
+        <input id="password" type="password" placeholder="Sua senha" />
+        <div class="row">
+          <button id="registerBtn">Cadastrar</button>
+          <button id="loginBtn">Entrar</button>
+        </div>
+        <button id="logoutBtn" class="ghost full">Sair</button>
+        <p id="authStatus" class="muted">Modo local</p>
+      </section>
+
+      <section class="card">
+        <h2>Navegação</h2>
+        <label>Livro</label>
+        <select id="bookSelect"></select>
+        <label>Capítulo</label>
+        <select id="chapterSelect"></select>
+        <label>Buscar</label>
+        <input id="searchInput" type="text" placeholder="Buscar palavra ou referência..." />
+      </section>
+
+      <section class="card">
+        <h2>Menu</h2>
+        <nav class="menu">
+          <button class="menu-btn active" data-view="leitura">Leitura</button>
+          <button class="menu-btn" data-view="busca">Busca</button>
+          <button class="menu-btn" data-view="ia">IA Bíblica</button>
+          <button class="menu-btn" data-view="favoritos">Favoritos</button>
+          <button class="menu-btn" data-view="anotacoes">Anotações</button>
+          <button class="menu-btn" data-view="plano">Plano</button>
+        </nav>
+      </section>
+
+      <section class="card">
+        <h2>Status</h2>
+        <p id="statusText" class="muted">Carregando Bíblia...</p>
+      </section>
+    </aside>
+
+    <section class="content">
+      <section id="view-leitura" class="view active">
+        <div class="card">
+          <h2 id="chapterTitle">Leitura</h2>
+          <div id="chapterList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="view-busca" class="view">
+        <div class="card">
+          <h2>Resultados da busca</h2>
+          <div id="searchList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="view-ia" class="view">
+        <div class="card">
+          <h2>IA Bíblica</h2>
+          <label>Modo</label>
+          <select id="aiMode">
+            <option value="chat">Chat bíblico</option>
+            <option value="explicar">Explicar versículo</option>
+            <option value="reflexao">Gerar reflexão</option>
+            <option value="oracao">Gerar oração</option>
+            <option value="estudo">Estudo completo</option>
+          </select>
+          <textarea id="aiInput" rows="8" placeholder="Digite sua pergunta..."></textarea>
+          <div class="row">
+            <button id="askAiBtn">Perguntar à IA</button>
+            <button id="saveAiAsNoteBtn" class="ghost">Salvar nas anotações</button>
+          </div>
+          <div id="aiOutput" class="ai-output">A resposta da IA aparecerá aqui.</div>
+        </div>
+      </section>
+
+      <section id="view-favoritos" class="view">
+        <div class="card">
+          <h2>Favoritos</h2>
+          <div id="favoritesList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="view-anotacoes" class="view">
+        <div class="card">
+          <h2>Anotações</h2>
+          <input id="noteRef" type="text" placeholder="Referência. Ex.: João 3:16" />
+          <textarea id="noteText" rows="8" placeholder="Escreva sua anotação..."></textarea>
+          <div class="row">
+            <button id="saveNoteBtn">Salvar anotação</button>
+            <button id="clearNoteBtn" class="ghost">Limpar</button>
+          </div>
+          <div id="notesList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="view-plano" class="view">
+        <div class="card">
+          <div class="row between">
+            <h2>Plano de leitura</h2>
+            <button id="resetPlanBtn" class="ghost">Resetar</button>
+          </div>
+          <div id="planList" class="plan-grid"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const SUPABASE_URL = "https://tvnwjcsadtjhxzakends.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_4J6y5G3ZW0KCE4o4ViNUcg_Ai9ybV8w";
+    const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+    const state = {
+      user: null,
+      theme: localStorage.getItem("acfpro_theme") || "dark",
+      favorites: JSON.parse(localStorage.getItem("acfpro_favorites") || "[]"),
+      notes: JSON.parse(localStorage.getItem("acfpro_notes") || "{}"),
+      plan: JSON.parse(localStorage.getItem("acfpro_plan") || "{}"),
+      books: [],
+      flatVerses: [],
+      currentBook: "",
+      currentChapter: 1,
+      lastAiAnswer: ""
+    };
+
+    const planDays = [
+      "Dia 1 - Mateus 5","Dia 2 - João 3","Dia 3 - Salmos 23","Dia 4 - Romanos 8","Dia 5 - Filipenses 4",
+      "Dia 6 - Provérbios 3","Dia 7 - Isaías 41","Dia 8 - João 14","Dia 9 - Salmos 91","Dia 10 - Tiago 1"
+    ];
+
+    function el(id){ return document.getElementById(id); }
+    function saveLocal(){
+      localStorage.setItem("acfpro_theme", state.theme);
+      localStorage.setItem("acfpro_favorites", JSON.stringify(state.favorites));
+      localStorage.setItem("acfpro_notes", JSON.stringify(state.notes));
+      localStorage.setItem("acfpro_plan", JSON.stringify(state.plan));
+    }
+    function toast(msg){
+      const t = el("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(()=>t.classList.remove("show"), 1800);
+    }
+    function setTheme(){ document.body.className = state.theme === "light" ? "light" : ""; }
+    function setAuthStatus(){ el("authStatus").textContent = state.user ? `Logado: ${state.user.email}` : "Modo local"; }
+    function switchView(view){
+      document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+      document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
+      el("view-" + view).classList.add("active");
+      document.querySelector(`.menu-btn[data-view="${view}"]`).classList.add("active");
+      if(view === "favoritos") renderFavorites();
+      if(view === "anotacoes") renderNotes();
+      if(view === "plano") renderPlan();
+      if(view === "busca") renderSearch();
+    }
+
+    function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
+    function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
+    function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+
+    async function loadBible() {
+      try {
+        const res = await fetch("./data/acf_biblia_ptbr.json", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+        const data = await res.json();
+
+        state.books = data.books || [];
+        state.flatVerses = [];
+
+        state.books.forEach(book => {
+          (book.chapters || []).forEach((chapter, cIndex) => {
+            (chapter || []).forEach((verse, vIndex) => {
+              state.flatVerses.push({
+                book: book.name,
+                chapter: cIndex + 1,
+                verse: vIndex + 1,
+                text: verse
+              });
+            });
+          });
+        });
+
+        if (!state.books.length) throw new Error("JSON sem livros");
+
+        el("statusText").textContent = `Bíblia carregada: ${state.flatVerses.length} versículos`;
+        populateBooks();
+        renderChapter();
+      } catch (e) {
+        console.error(e);
+        el("statusText").textContent = "Erro ao carregar JSON da Bíblia";
+        el("chapterList").innerHTML = `<div class="item">Não foi possível carregar <b>data/acf_biblia_ptbr.json</b>.</div>`;
+      }
+    }
+
+    function populateBooks(){
+      const select = el("bookSelect");
+      select.innerHTML = state.books.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+      state.currentBook = state.books[0]?.name || "";
+      select.value = state.currentBook;
+      populateChapters();
+    }
+
+    function populateChapters(){
+      const chapters = allChapters(state.currentBook);
+      const select = el("chapterSelect");
+      select.innerHTML = chapters.map(c => `<option value="${c}">${c}</option>`).join("");
+      state.currentChapter = chapters[0] || 1;
+      select.value = String(state.currentChapter);
+    }
+
+    function renderVerseCard(v, showRemove=false){
+      const div = document.createElement("div");
+      div.className = "verse-card";
+      div.innerHTML = `<div class="ref">${refFor(v)}</div><div>${v.text}</div>`;
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const fav = document.createElement("button");
+      fav.className = "small-btn" + (state.favorites.includes(refFor(v)) ? " saved" : "");
+      fav.textContent = state.favorites.includes(refFor(v)) ? "Favorito" : "Salvar favorito";
+      fav.onclick = () => toggleFavorite(refFor(v));
+
+      const note = document.createElement("button");
+      note.className = "small-btn ghost";
+      note.textContent = "Anotar";
+      note.onclick = () => {
+        el("noteRef").value = refFor(v);
+        el("noteText").value = state.notes[refFor(v)] || "";
+        switchView("anotacoes");
+      };
+
+      const ai = document.createElement("button");
+      ai.className = "small-btn ghost";
+      ai.textContent = "Explicar com IA";
+      ai.onclick = () => {
+        el("aiMode").value = "explicar";
+        el("aiInput").value = `Explique ${refFor(v)}: ${v.text}`;
+        switchView("ia");
+      };
+
+      actions.appendChild(fav);
+      actions.appendChild(note);
+      actions.appendChild(ai);
+
+      if(showRemove){
+        const rem = document.createElement("button");
+        rem.className = "small-btn ghost";
+        rem.textContent = "Remover";
+        rem.onclick = () => toggleFavorite(refFor(v));
+        actions.appendChild(rem);
+      }
+
+      div.appendChild(actions);
+      return div;
+    }
+
+    function renderChapter(){
+      el("chapterTitle").textContent = `${state.currentBook} ${state.currentChapter}`;
+      const root = el("chapterList");
+      root.innerHTML = "";
+      const verses = chapterVerses(state.currentBook, state.currentChapter);
+      if(!verses.length){
+        root.innerHTML = '<div class="item">Nenhum versículo encontrado.</div>';
+        return;
+      }
+      verses.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderSearch(){
+      const term = el("searchInput").value.trim().toLowerCase();
+      const root = el("searchList");
+      root.innerHTML = "";
+      if(!term){
+        root.innerHTML = '<div class="item">Digite algo para buscar.</div>';
+        return;
+      }
+      const results = state.flatVerses.filter(v =>
+        refFor(v).toLowerCase().includes(term) || String(v.text).toLowerCase().includes(term)
+      ).slice(0, 200);
+
+      if(!results.length){
+        root.innerHTML = '<div class="item">Nenhum resultado encontrado.</div>';
+        return;
+      }
+      results.forEach(v => root.appendChild(renderVerseCard(v)));
+    }
+
+    function renderFavorites(){
+      const root = el("favoritesList");
+      root.innerHTML = "";
+      if(!state.favorites.length){
+        root.innerHTML = '<div class="item">Nenhum favorito salvo.</div>';
+        return;
+      }
+      state.favorites.forEach(ref => {
+        const v = state.flatVerses.find(x => refFor(x) === ref);
+        if(v) root.appendChild(renderVerseCard(v, true));
+      });
+    }
+
+    function renderNotes(){
+      const root = el("notesList");
+      root.innerHTML = "";
+      const entries = Object.entries(state.notes);
+      if(!entries.length){
+        root.innerHTML = '<div class="item">Nenhuma anotação salva.</div>';
+        return;
+      }
+      entries.forEach(([ref, text]) => {
+        const item = document.createElement("div");
+        item.className = "item";
+        item.innerHTML = `<div class="item-title">${ref}</div><div>${String(text).slice(0, 280)}</div>`;
+        item.onclick = () => {
+          el("noteRef").value = ref;
+          el("noteText").value = text;
+        };
+        root.appendChild(item);
+      });
+    }
+
+    function renderPlan(){
+      const root = el("planList");
+      root.innerHTML = "";
+      planDays.forEach((day, i) => {
+        const done = !!state.plan[i];
+        const item = document.createElement("div");
+        item.className = "plan-item" + (done ? " done" : "");
+        item.innerHTML = `<div class="item-title">${day}</div><div>${done ? "Concluído" : "Pendente"}</div>`;
+        const btn = document.createElement("button");
+        btn.textContent = done ? "Marcar pendente" : "Concluir";
+        btn.style.marginTop = "10px";
+        btn.onclick = () => togglePlan(i);
+        item.appendChild(btn);
+        root.appendChild(item);
+      });
+    }
+
+    async function register(){
+      if(!sb) return toast("Supabase não configurado");
+      const { error } = await sb.auth.signUp({
+        email: el("email").value.trim(),
+        password: el("password").value.trim()
+      });
+      if(error) return toast(error.message);
+      toast("Cadastro enviado");
+    }
+
+    async function login(){
+      if(!sb) return toast("Supabase não configurado");
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: el("email").value.trim(),
+        password: el("password").value.trim()
+      });
+      if(error) return toast(error.message);
+      state.user = data.user;
+      setAuthStatus();
+      await syncFromCloud();
+      toast("Login realizado");
+    }
+
+    async function logout(){
+      if(sb) await sb.auth.signOut();
+      state.user = null;
+      setAuthStatus();
+      toast("Sessão encerrada");
+    }
+
+    async function checkSession(){
+      if(!sb) return;
+      const { data } = await sb.auth.getUser();
+      state.user = data?.user || null;
+      setAuthStatus();
+      if(state.user) await syncFromCloud();
+    }
+
+    async function syncFromCloud(){
+      if(!sb || !state.user) return;
+      const favs = await sb.from("favorites").select("verse_key").eq("user_id", state.user.id);
+      if(!favs.error) state.favorites = (favs.data || []).map(x=>x.verse_key);
+
+      const notes = await sb.from("notes").select("verse_key, content").eq("user_id", state.user.id);
+      if(!notes.error){
+        state.notes = {};
+        (notes.data || []).forEach(x => state.notes[x.verse_key] = x.content);
+      }
+
+      const plan = await sb.from("reading_progress").select("day_index, done").eq("user_id", state.user.id);
+      if(!plan.error){
+        state.plan = {};
+        (plan.data || []).forEach(x => state.plan[x.day_index] = !!x.done);
+      }
+
+      saveLocal();
+      renderFavorites();
+      renderNotes();
+      renderPlan();
+    }
+
+    async function toggleFavorite(ref){
+      if(state.favorites.includes(ref)){
+        state.favorites = state.favorites.filter(x => x !== ref);
+        if(state.user && sb){
+          await sb.from("favorites").delete().eq("user_id", state.user.id).eq("verse_key", ref);
+        }
+        toast("Favorito removido");
+      } else {
+        state.favorites.unshift(ref);
+        if(state.user && sb){
+          const m = ref.match(/^(.*) (\d+):(\d+)$/);
+          await sb.from("favorites").upsert({
+            user_id: state.user.id,
+            verse_key: ref,
+            book: m ? m[1] : ref,
+            chapter: m ? Number(m[2]) : 1,
+            verse: m ? Number(m[3]) : 1
+          }, { onConflict: "user_id,verse_key" });
+        }
+        toast("Favorito salvo");
+      }
+      saveLocal();
+      renderFavorites();
+      renderChapter();
+      renderSearch();
+    }
+
+    async function saveNote(){
+      const ref = el("noteRef").value.trim();
+      const text = el("noteText").value.trim();
+      if(!ref) return toast("Digite a referência");
+
+      if(text) state.notes[ref] = text;
+      else delete state.notes[ref];
+
+      if(state.user && sb){
+        const m = ref.match(/^(.*) (\d+):(\d+)$/);
+        if(text){
+          await sb.from("notes").upsert({
+            user_id: state.user.id,
+            verse_key: ref,
+            book: m ? m[1] : ref,
+            chapter: m ? Number(m[2]) : 1,
+            verse: m ? Number(m[3]) : 1,
+            content: text
+          }, { onConflict: "user_id,verse_key" });
+        } else {
+          await sb.from("notes").delete().eq("user_id", state.user.id).eq("verse_key", ref);
+        }
+      }
+
+      saveLocal();
+      renderNotes();
+      toast(text ? "Anotação salva" : "Anotação removida");
+    }
+
+    async function togglePlan(i){
+      state.plan[i] = !state.plan[i];
+      if(state.user && sb){
+        await sb.from("reading_progress").upsert({
+          user_id: state.user.id,
+          day_index: i,
+          done: !!state.plan[i]
+        }, { onConflict: "user_id,day_index" });
+      }
+      saveLocal();
+      renderPlan();
+    }
+
+    async function resetPlan(){
+      state.plan = {};
+      if(state.user && sb){
+        await sb.from("reading_progress").delete().eq("user_id", state.user.id);
+      }
+      saveLocal();
+      renderPlan();
+      toast("Plano resetado");
+    }
+
+    function systemPrompt(mode){
+      const map = {
+        chat: "Responda em português do Brasil como um assistente bíblico respeitoso. Use linguagem simples e objetiva.",
+        explicar: "Explique o versículo ou trecho pedido em português do Brasil com contexto, significado e aplicação prática.",
+        reflexao: "Crie uma reflexão bíblica em português do Brasil, profunda e acessível.",
+        oracao: "Escreva uma oração em português do Brasil, reverente e ligada ao tema pedido.",
+        estudo: "Monte um estudo bíblico completo em português do Brasil com título, introdução, versículos, explicação, aplicação e conclusão."
+      };
+      return map[mode] || map.chat;
+    }
+
+    async function askAI(){
+      const mode = el("aiMode").value;
+      const input = el("aiInput").value.trim();
+      if(!input) return toast("Digite sua pergunta");
+
+      el("aiOutput").textContent = "Gerando resposta...";
+
+      try{
+        const response = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, system: systemPrompt(mode), input })
+        });
+
+        const data = await response.json();
+        if(!response.ok) throw new Error(data.error || "Falha na IA");
+
+        state.lastAiAnswer = data.output || "";
+        el("aiOutput").textContent = state.lastAiAnswer || "Sem resposta.";
+      }catch(e){
+        el("aiOutput").textContent = "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
+      }
+    }
+
+    function saveAiAsNote(){
+      const text = state.lastAiAnswer.trim();
+      if(!text) return toast("Ainda não há resposta da IA");
+
+      const ref = el("noteRef").value.trim() || "IA - estudo";
+      el("noteRef").value = ref;
+      el("noteText").value = text;
+      saveNote();
+      switchView("anotacoes");
+    }
+
+    document.querySelectorAll(".menu-btn").forEach(btn => btn.addEventListener("click", ()=>switchView(btn.dataset.view)));
+    el("themeToggle").addEventListener("click", ()=>{ state.theme = state.theme === "dark" ? "light" : "dark"; setTheme(); saveLocal(); });
+    el("registerBtn").addEventListener("click", register);
+    el("loginBtn").addEventListener("click", login);
+    el("logoutBtn").addEventListener("click", logout);
+    el("bookSelect").addEventListener("change", ()=>{ state.currentBook = el("bookSelect").value; populateChapters(); renderChapter(); });
+    el("chapterSelect").addEventListener("change", ()=>{ state.currentChapter = Number(el("chapterSelect").value); renderChapter(); });
+    el("searchInput").addEventListener("input", ()=>{ switchView("busca"); renderSearch(); });
+    el("saveNoteBtn").addEventListener("click", saveNote);
+    el("clearNoteBtn").addEventListener("click", ()=>{ el("noteText").value = ""; saveNote(); });
+    el("resetPlanBtn").addEventListener("click", resetPlan);
+    el("askAiBtn").addEventListener("click", askAI);
+    el("saveAiAsNoteBtn").addEventListener("click", saveAiAsNote);
+
+    setTheme();
+    setAuthStatus();
+    renderFavorites();
+    renderNotes();
+    renderPlan();
+    checkSession();
+    loadBible();
+  </script>
+</body>
+</html>

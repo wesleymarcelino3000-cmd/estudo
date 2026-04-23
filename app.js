@@ -3,30 +3,30 @@ const sb = (CONFIG.supabaseUrl && CONFIG.supabaseAnonKey && window.supabase)
   ? window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey)
   : null;
 
-const planDays = [
-  "Dia 1 - Mateus 5","Dia 2 - João 3","Dia 3 - Salmos 23","Dia 4 - Romanos 8","Dia 5 - Filipenses 4",
-  "Dia 6 - Provérbios 3","Dia 7 - Isaías 41","Dia 8 - João 14","Dia 9 - Salmos 91","Dia 10 - Tiago 1",
-  "Dia 11 - Hebreus 11","Dia 12 - Efésios 6","Dia 13 - Apocalipse 21","Dia 14 - Gênesis 1","Dia 15 - Êxodo 14",
-  "Dia 16 - Josué 1","Dia 17 - 1 Samuel 17","Dia 18 - Salmos 1","Dia 19 - Provérbios 31","Dia 20 - Mateus 6",
-  "Dia 21 - Lucas 15","Dia 22 - João 10","Dia 23 - Atos 2","Dia 24 - 1 Coríntios 13","Dia 25 - Gálatas 5",
-  "Dia 26 - Colossenses 3","Dia 27 - 2 Timóteo 1","Dia 28 - Hebreus 12","Dia 29 - 1 Pedro 5","Dia 30 - Apocalipse 22"
-];
-
 const state = {
   user: null,
-  theme: localStorage.getItem("acf_ia_theme") || "dark",
-  favorites: JSON.parse(localStorage.getItem("acf_ia_favorites") || "[]"),
-  notes: JSON.parse(localStorage.getItem("acf_ia_notes") || "{}"),
-  plan: JSON.parse(localStorage.getItem("acf_ia_plan") || "{}"),
+  theme: localStorage.getItem("acfjson_theme") || "dark",
+  favorites: JSON.parse(localStorage.getItem("acfjson_favorites") || "[]"),
+  notes: JSON.parse(localStorage.getItem("acfjson_notes") || "{}"),
+  plan: JSON.parse(localStorage.getItem("acfjson_plan") || "{}"),
+  books: [],
+  flatVerses: [],
+  currentBook: "",
+  currentChapter: 1,
   lastAiAnswer: ""
 };
 
+const planDays = [
+  "Dia 1 - Mateus 5","Dia 2 - João 3","Dia 3 - Salmos 23","Dia 4 - Romanos 8","Dia 5 - Filipenses 4",
+  "Dia 6 - Provérbios 3","Dia 7 - Isaías 41","Dia 8 - João 14","Dia 9 - Salmos 91","Dia 10 - Tiago 1"
+];
+
 function el(id){ return document.getElementById(id); }
 function saveLocal(){
-  localStorage.setItem("acf_ia_theme", state.theme);
-  localStorage.setItem("acf_ia_favorites", JSON.stringify(state.favorites));
-  localStorage.setItem("acf_ia_notes", JSON.stringify(state.notes));
-  localStorage.setItem("acf_ia_plan", JSON.stringify(state.plan));
+  localStorage.setItem("acfjson_theme", state.theme);
+  localStorage.setItem("acfjson_favorites", JSON.stringify(state.favorites));
+  localStorage.setItem("acfjson_notes", JSON.stringify(state.notes));
+  localStorage.setItem("acfjson_plan", JSON.stringify(state.plan));
 }
 function toast(msg){
   const t = el("toast");
@@ -34,6 +34,8 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1800);
 }
+function setTheme(){ document.body.className = state.theme === "light" ? "light" : ""; }
+function setAuthStatus(){ el("authStatus").textContent = state.user ? `Logado: ${state.user.email}` : "Modo local"; }
 function switchView(view){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
@@ -42,49 +44,142 @@ function switchView(view){
   if(view === "favoritos") renderFavorites();
   if(view === "anotacoes") renderNotes();
   if(view === "plano") renderPlan();
+  if(view === "busca") renderSearch();
 }
 window.switchView = switchView;
 
-function setTheme(){
-  document.body.className = state.theme === "light" ? "light" : "";
+function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
+function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
+function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+
+async function loadBible(){
+  try{
+    const res = await fetch("./data/acf_biblia_ptbr.json", { cache: "no-store" });
+    const data = await res.json();
+    state.books = data.books || [];
+    state.flatVerses = [];
+    state.books.forEach(book => {
+      (book.chapters || []).forEach((chapter, cIndex) => {
+        (chapter || []).forEach((verse, vIndex) => {
+          state.flatVerses.push({
+            book: book.name,
+            chapter: cIndex + 1,
+            verse: vIndex + 1,
+            text: verse
+          });
+        });
+      });
+    });
+    el("statusText").textContent = `Bíblia carregada: ${state.flatVerses.length} versículos`;
+    populateBooks();
+    renderChapter();
+  }catch(e){
+    console.error(e);
+    el("statusText").textContent = "Erro ao carregar JSON da Bíblia";
+  }
 }
-function setAuthStatus(){
-  el("authStatus").textContent = state.user ? `Logado: ${state.user.email}` : "Modo local";
+
+function populateBooks(){
+  const select = el("bookSelect");
+  select.innerHTML = state.books.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+  state.currentBook = state.books[0]?.name || "";
+  select.value = state.currentBook;
+  populateChapters();
 }
-function renderFavorites(list = state.favorites){
+function populateChapters(){
+  const chapters = allChapters(state.currentBook);
+  const select = el("chapterSelect");
+  select.innerHTML = chapters.map(c => `<option value="${c}">${c}</option>`).join("");
+  state.currentChapter = chapters[0] || 1;
+  select.value = String(state.currentChapter);
+}
+
+function renderVerseCard(v, showRemove=false){
+  const div = document.createElement("div");
+  div.className = "verse-card";
+  div.innerHTML = `<div class="ref">${refFor(v)}</div><div>${v.text}</div>`;
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const fav = document.createElement("button");
+  fav.className = "small-btn" + (state.favorites.includes(refFor(v)) ? " saved" : "");
+  fav.textContent = state.favorites.includes(refFor(v)) ? "Favorito" : "Salvar favorito";
+  fav.onclick = () => toggleFavorite(refFor(v));
+  const note = document.createElement("button");
+  note.className = "small-btn ghost";
+  note.textContent = "Anotar";
+  note.onclick = () => {
+    el("noteRef").value = refFor(v);
+    el("noteText").value = state.notes[refFor(v)] || "";
+    switchView("anotacoes");
+  };
+  actions.appendChild(fav);
+  actions.appendChild(note);
+  if(showRemove){
+    const rem = document.createElement("button");
+    rem.className = "small-btn ghost";
+    rem.textContent = "Remover";
+    rem.onclick = () => toggleFavorite(refFor(v));
+    actions.appendChild(rem);
+  }
+  const ai = document.createElement("button");
+  ai.className = "small-btn ghost";
+  ai.textContent = "Explicar com IA";
+  ai.onclick = () => {
+    el("aiMode").value = "explicar";
+    el("aiInput").value = `Explique ${refFor(v)}: ${v.text}`;
+    switchView("ia");
+  };
+  actions.appendChild(ai);
+  div.appendChild(actions);
+  return div;
+}
+
+function renderChapter(){
+  el("chapterTitle").textContent = `${state.currentBook} ${state.currentChapter}`;
+  const root = el("chapterList");
+  root.innerHTML = "";
+  chapterVerses(state.currentBook, state.currentChapter).forEach(v => root.appendChild(renderVerseCard(v)));
+}
+function renderSearch(){
+  const term = el("searchInput").value.trim().toLowerCase();
+  const root = el("searchList");
+  root.innerHTML = "";
+  if(!term){
+    root.innerHTML = '<div class="item">Digite algo para buscar.</div>';
+    return;
+  }
+  const results = state.flatVerses.filter(v => refFor(v).toLowerCase().includes(term) || String(v.text).toLowerCase().includes(term)).slice(0, 200);
+  if(!results.length){
+    root.innerHTML = '<div class="item">Nenhum resultado encontrado.</div>';
+    return;
+  }
+  results.forEach(v => root.appendChild(renderVerseCard(v)));
+}
+function renderFavorites(){
   const root = el("favoritesList");
   root.innerHTML = "";
-  if(!list.length){
+  if(!state.favorites.length){
     root.innerHTML = '<div class="item">Nenhum favorito salvo.</div>';
     return;
   }
-  list.forEach(ref => {
-    const item = document.createElement("div");
-    item.className = "item";
-    item.innerHTML = `<div class="item-title">${ref}</div>`;
-    const row = document.createElement("div");
-    row.className = "row";
-    const removeBtn = document.createElement("button");
-    removeBtn.className = "ghost";
-    removeBtn.textContent = "Remover";
-    removeBtn.onclick = ()=>removeFavorite(ref);
-    row.appendChild(removeBtn);
-    item.appendChild(row);
-    root.appendChild(item);
+  state.favorites.forEach(ref => {
+    const v = state.flatVerses.find(x => refFor(x) === ref);
+    if(v) root.appendChild(renderVerseCard(v, true));
   });
 }
-function renderNotes(listEntries = Object.entries(state.notes)){
+function renderNotes(){
   const root = el("notesList");
   root.innerHTML = "";
-  if(!listEntries.length){
+  const entries = Object.entries(state.notes);
+  if(!entries.length){
     root.innerHTML = '<div class="item">Nenhuma anotação salva.</div>';
     return;
   }
-  listEntries.forEach(([ref, text]) => {
+  entries.forEach(([ref, text]) => {
     const item = document.createElement("div");
     item.className = "item";
     item.innerHTML = `<div class="item-title">${ref}</div><div>${String(text).slice(0, 280)}</div>`;
-    item.onclick = ()=>{
+    item.onclick = () => {
       el("noteRef").value = ref;
       el("noteText").value = text;
     };
@@ -98,47 +193,25 @@ function renderPlan(){
     const done = !!state.plan[i];
     const item = document.createElement("div");
     item.className = "plan-item" + (done ? " done" : "");
-    item.innerHTML = `<div class="item-title">${day}</div><div class="muted">${done ? "Concluído" : "Pendente"}</div>`;
+    item.innerHTML = `<div class="item-title">${day}</div><div>${done ? "Concluído" : "Pendente"}</div>`;
     const btn = document.createElement("button");
-    btn.style.marginTop = "10px";
     btn.textContent = done ? "Marcar pendente" : "Concluir";
-    btn.onclick = ()=>togglePlan(i);
+    btn.style.marginTop = "10px";
+    btn.onclick = () => togglePlan(i);
     item.appendChild(btn);
     root.appendChild(item);
   });
 }
-function renderQuickSearch(){
-  const term = el("quickSearch").value.trim().toLowerCase();
-  const root = el("quickSearchResults");
-  root.innerHTML = "";
-  if(!term) return;
-  const favs = state.favorites.filter(x => x.toLowerCase().includes(term)).map(x => ({type:"Favorito", ref:x, text:""}));
-  const notes = Object.entries(state.notes).filter(([r,t]) => r.toLowerCase().includes(term) || String(t).toLowerCase().includes(term)).map(([r,t]) => ({type:"Nota", ref:r, text:t}));
-  const merged = [...favs, ...notes].slice(0, 8);
-  if(!merged.length){
-    root.innerHTML = '<div class="item">Nada encontrado.</div>';
-    return;
-  }
-  merged.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<div class="item-title">${item.type}: ${item.ref}</div><div>${String(item.text).slice(0,120)}</div>`;
-    root.appendChild(div);
-  });
-}
+
 async function register(){
   if(!sb) return toast("Supabase não configurado");
-  const email = el("email").value.trim();
-  const password = el("password").value.trim();
-  const { error } = await sb.auth.signUp({ email, password });
+  const { error } = await sb.auth.signUp({ email: el("email").value.trim(), password: el("password").value.trim() });
   if(error) return toast(error.message);
   toast("Cadastro enviado");
 }
 async function login(){
   if(!sb) return toast("Supabase não configurado");
-  const email = el("email").value.trim();
-  const password = el("password").value.trim();
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email: el("email").value.trim(), password: el("password").value.trim() });
   if(error) return toast(error.message);
   state.user = data.user;
   setAuthStatus();
@@ -150,6 +223,13 @@ async function logout(){
   state.user = null;
   setAuthStatus();
   toast("Sessão encerrada");
+}
+async function checkSession(){
+  if(!sb) return;
+  const { data } = await sb.auth.getUser();
+  state.user = data?.user || null;
+  setAuthStatus();
+  if(state.user) await syncFromCloud();
 }
 async function syncFromCloud(){
   if(!sb || !state.user) return;
@@ -166,43 +246,29 @@ async function syncFromCloud(){
     (plan.data || []).forEach(x => state.plan[x.day_index] = !!x.done);
   }
   saveLocal();
-  renderFavorites();
-  renderNotes();
-  renderPlan();
+  renderFavorites(); renderNotes(); renderPlan();
 }
-async function checkSession(){
-  if(!sb) return;
-  const { data } = await sb.auth.getUser();
-  state.user = data?.user || null;
-  setAuthStatus();
-  if(state.user) await syncFromCloud();
-}
-async function saveFavorite(){
-  const ref = el("favoriteRef").value.trim();
-  if(!ref) return toast("Digite uma referência");
-  if(!state.favorites.includes(ref)) state.favorites.unshift(ref);
-  if(state.user && sb){
-    await sb.from("favorites").upsert({
-      user_id: state.user.id,
-      verse_key: ref,
-      book: ref.split(" ")[0] || ref,
-      chapter: 1,
-      verse: 1
-    }, { onConflict: "user_id,verse_key" });
+async function toggleFavorite(ref){
+  if(state.favorites.includes(ref)){
+    state.favorites = state.favorites.filter(x => x !== ref);
+    if(state.user && sb) await sb.from("favorites").delete().eq("user_id", state.user.id).eq("verse_key", ref);
+    toast("Favorito removido");
+  } else {
+    state.favorites.unshift(ref);
+    if(state.user && sb){
+      const m = ref.match(/^(.*) (\d+):(\d+)$/);
+      await sb.from("favorites").upsert({
+        user_id: state.user.id,
+        verse_key: ref,
+        book: m ? m[1] : ref,
+        chapter: m ? Number(m[2]) : 1,
+        verse: m ? Number(m[3]) : 1
+      }, { onConflict: "user_id,verse_key" });
+    }
+    toast("Favorito salvo");
   }
   saveLocal();
-  el("favoriteRef").value = "";
-  renderFavorites();
-  toast("Favorito salvo");
-}
-async function removeFavorite(ref){
-  state.favorites = state.favorites.filter(x => x !== ref);
-  if(state.user && sb){
-    await sb.from("favorites").delete().eq("user_id", state.user.id).eq("verse_key", ref);
-  }
-  saveLocal();
-  renderFavorites();
-  toast("Favorito removido");
+  renderFavorites(); renderChapter(); renderSearch();
 }
 async function saveNote(){
   const ref = el("noteRef").value.trim();
@@ -210,13 +276,14 @@ async function saveNote(){
   if(!ref) return toast("Digite a referência");
   if(text) state.notes[ref] = text; else delete state.notes[ref];
   if(state.user && sb){
+    const m = ref.match(/^(.*) (\d+):(\d+)$/);
     if(text){
       await sb.from("notes").upsert({
         user_id: state.user.id,
         verse_key: ref,
-        book: ref.split(" ")[0] || ref,
-        chapter: 1,
-        verse: 1,
+        book: m ? m[1] : ref,
+        chapter: m ? Number(m[2]) : 1,
+        verse: m ? Number(m[3]) : 1,
         content: text
       }, { onConflict: "user_id,verse_key" });
     } else {
@@ -241,45 +308,36 @@ async function togglePlan(i){
 }
 async function resetPlan(){
   state.plan = {};
-  if(state.user && sb){
-    await sb.from("reading_progress").delete().eq("user_id", state.user.id);
-  }
-  saveLocal();
-  renderPlan();
-  toast("Plano resetado");
+  if(state.user && sb) await sb.from("reading_progress").delete().eq("user_id", state.user.id);
+  saveLocal(); renderPlan(); toast("Plano resetado");
 }
-function buildSystemPrompt(mode){
-  const prompts = {
-    chat: "Responda em português do Brasil como um assistente bíblico respeitoso. Use linguagem simples, objetiva e pastoral. Quando útil, cite referências bíblicas.",
-    explicar: "Explique o versículo ou trecho pedido em português do Brasil. Traga contexto, significado e aplicação prática em tópicos curtos.",
-    reflexao: "Crie uma reflexão bíblica em português do Brasil, profunda mas acessível, com aplicação prática ao final.",
-    oracao: "Escreva uma oração em português do Brasil, reverente, curta a média, ligada ao tema pedido.",
-    estudo: "Monte um estudo bíblico completo em português do Brasil com título, introdução, versículos principais, explicação, aplicação, perguntas para reflexão e conclusão."
+function systemPrompt(mode){
+  const map = {
+    chat: "Responda em português do Brasil como um assistente bíblico respeitoso. Use linguagem simples e objetiva.",
+    explicar: "Explique o versículo ou trecho pedido em português do Brasil com contexto, significado e aplicação prática.",
+    reflexao: "Crie uma reflexão bíblica em português do Brasil, profunda e acessível.",
+    oracao: "Escreva uma oração em português do Brasil, reverente e ligada ao tema pedido.",
+    estudo: "Monte um estudo bíblico completo em português do Brasil com título, introdução, versículos, explicação, aplicação e conclusão."
   };
-  return prompts[mode] || prompts.chat;
+  return map[mode] || map.chat;
 }
 async function askAI(){
   const mode = el("aiMode").value;
   const input = el("aiInput").value.trim();
   if(!input) return toast("Digite sua pergunta");
-  const out = el("aiOutput");
-  out.textContent = "Gerando resposta...";
+  el("aiOutput").textContent = "Gerando resposta...";
   try{
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mode,
-        system: buildSystemPrompt(mode),
-        input
-      })
+      body: JSON.stringify({ mode, system: systemPrompt(mode), input })
     });
     const data = await response.json();
     if(!response.ok) throw new Error(data.error || "Falha na IA");
     state.lastAiAnswer = data.output || "";
-    out.textContent = state.lastAiAnswer || "Sem resposta.";
-  }catch(err){
-    out.textContent = "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
+    el("aiOutput").textContent = state.lastAiAnswer || "Sem resposta.";
+  }catch(e){
+    el("aiOutput").textContent = "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
   }
 }
 function saveAiAsNote(){
@@ -291,17 +349,18 @@ function saveAiAsNote(){
   saveNote();
   switchView("anotacoes");
 }
+
 document.querySelectorAll(".menu-btn").forEach(btn => btn.addEventListener("click", ()=>switchView(btn.dataset.view)));
-document.querySelectorAll(".chip").forEach(btn => btn.addEventListener("click", ()=> el("aiInput").value = btn.dataset.prompt));
 el("themeToggle").addEventListener("click", ()=>{ state.theme = state.theme === "dark" ? "light" : "dark"; setTheme(); saveLocal(); });
 el("registerBtn").addEventListener("click", register);
 el("loginBtn").addEventListener("click", login);
 el("logoutBtn").addEventListener("click", logout);
-el("saveFavoriteBtn").addEventListener("click", saveFavorite);
+el("bookSelect").addEventListener("change", ()=>{ state.currentBook = el("bookSelect").value; populateChapters(); renderChapter(); });
+el("chapterSelect").addEventListener("change", ()=>{ state.currentChapter = Number(el("chapterSelect").value); renderChapter(); });
+el("searchInput").addEventListener("input", ()=>{ switchView("busca"); renderSearch(); });
 el("saveNoteBtn").addEventListener("click", saveNote);
 el("clearNoteBtn").addEventListener("click", ()=>{ el("noteText").value = ""; saveNote(); });
 el("resetPlanBtn").addEventListener("click", resetPlan);
-el("quickSearch").addEventListener("input", renderQuickSearch);
 el("askAiBtn").addEventListener("click", askAI);
 el("saveAiAsNoteBtn").addEventListener("click", saveAiAsNote);
 
@@ -311,3 +370,4 @@ renderFavorites();
 renderNotes();
 renderPlan();
 checkSession();
+loadBible();

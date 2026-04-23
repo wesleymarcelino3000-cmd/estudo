@@ -1,6 +1,6 @@
 {
-  "name": "Bíblia ACF IA",
-  "short_name": "Bíblia IA",
+  "name": "Bíblia ACF JSON",
+  "short_name": "Bíblia ACF",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#111827",

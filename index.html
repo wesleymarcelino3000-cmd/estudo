@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bíblia ACF PRO</title>
-  <meta name="theme-color" content="#111827" />
+  <title>Bíblia ACF IA Grátis</title>
   <style>
     *{box-sizing:border-box}
     :root{
       --bg:#0b1020;--panel:#111827;--card:#172033;--border:#263246;
-      --text:#e5e7eb;--muted:#94a3b8;--accent:#d4af37;--accent2:#166534;
+      --text:#e5e7eb;--muted:#94a3b8;--accent:#d4af37;--ok:#166534;
     }
     body.light{
-      --bg:#f3f4f6;--panel:#ffffff;--card:#ffffff;--border:#d7dce3;
-      --text:#111827;--muted:#6b7280;--accent:#a07c11;--accent2:#166534;
+      --bg:#f3f4f6;--panel:#fff;--card:#fff;--border:#d7dce3;
+      --text:#111827;--muted:#6b7280;--accent:#a07c11;--ok:#166534;
     }
     body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
     .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
@@ -21,7 +20,7 @@
     .brand-mark{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#f6e8ad);color:#111;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700}
     .brand h1{margin:0;font-size:28px}
     .brand p{margin:6px 0 0;color:var(--muted)}
-    .layout{display:grid;grid-template-columns:340px 1fr;min-height:calc(100vh - 93px)}
+    .layout{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 93px)}
     .sidebar{padding:18px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:16px}
     .content{padding:20px}
     .card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
@@ -31,12 +30,11 @@
     input,textarea,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text)}
     button{background:var(--accent);color:#111;border:none;border-radius:12px;padding:11px 14px;font-weight:700;cursor:pointer}
     .ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
-    .full{width:100%}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .between{justify-content:space-between}
     .menu{display:grid;gap:10px}
     .menu-btn.active{outline:2px solid rgba(255,255,255,.16)}
     .muted{color:var(--muted)}
+    .ok{color:#8ee39d}
     .view{display:none}
     .view.active{display:block}
     .list{display:grid;gap:12px}
@@ -44,24 +42,23 @@
     .ref,.item-title{font-weight:700;color:var(--accent);margin-bottom:6px}
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .small-btn{padding:8px 10px;border-radius:10px;font-size:14px}
-    .saved{background:var(--accent2)!important;color:#fff!important}
+    .saved{background:var(--ok)!important;color:#fff!important}
     .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
     .plan-item{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px}
-    .plan-item.done{border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset}
-    .ai-output{margin-top:16px;min-height:180px;white-space:pre-wrap;line-height:1.65;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .plan-item.done{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+    .ai-output{margin-top:16px;min-height:220px;white-space:pre-wrap;line-height:1.65;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
     .toast{position:fixed;right:16px;bottom:16px;background:#111827;color:#fff;padding:12px 14px;border-radius:12px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
     .toast.show{opacity:1;transform:translateY(0)}
     @media (max-width:980px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">✝</div>
       <div>
-        <h1>Bíblia ACF PRO</h1>
-        <p>Leitura, IA, favoritos, anotações, plano e nuvem</p>
+        <h1>Bíblia ACF IA Grátis</h1>
+        <p>Leitura, busca, favoritos, anotações, plano e IA local sem custo</p>
       </div>
     </div>
     <button id="themeToggle" class="ghost">Tema</button>
@@ -69,18 +66,6 @@
 
   <main class="layout">
     <aside class="sidebar">
-      <section class="card">
-        <h2>Conta</h2>
-        <input id="email" type="email" placeholder="Seu e-mail" />
-        <input id="password" type="password" placeholder="Sua senha" />
-        <div class="row">
-          <button id="registerBtn">Cadastrar</button>
-          <button id="loginBtn">Entrar</button>
-        </div>
-        <button id="logoutBtn" class="ghost full">Sair</button>
-        <p id="authStatus" class="muted">Modo local</p>
-      </section>
-
       <section class="card">
         <h2>Navegação</h2>
         <label>Livro</label>
@@ -96,7 +81,7 @@
         <nav class="menu">
           <button class="menu-btn active" data-view="leitura">Leitura</button>
           <button class="menu-btn" data-view="busca">Busca</button>
-          <button class="menu-btn" data-view="ia">IA Bíblica</button>
+          <button class="menu-btn" data-view="ia">IA Grátis</button>
           <button class="menu-btn" data-view="favoritos">Favoritos</button>
           <button class="menu-btn" data-view="anotacoes">Anotações</button>
           <button class="menu-btn" data-view="plano">Plano</button>
@@ -106,6 +91,7 @@
       <section class="card">
         <h2>Status</h2>
         <p id="statusText" class="muted">Carregando Bíblia...</p>
+        <p class="ok">IA local ativa</p>
       </section>
     </aside>
 
@@ -126,7 +112,7 @@
 
       <section id="view-ia" class="view">
         <div class="card">
-          <h2>IA Bíblica</h2>
+          <h2>IA Bíblica Grátis</h2>
           <label>Modo</label>
           <select id="aiMode">
             <option value="chat">Chat bíblico</option>
@@ -135,7 +121,7 @@
             <option value="oracao">Gerar oração</option>
             <option value="estudo">Estudo completo</option>
           </select>
-          <textarea id="aiInput" rows="8" placeholder="Digite sua pergunta..."></textarea>
+          <textarea id="aiInput" rows="8" placeholder="Digite sua pergunta ou tema..."></textarea>
           <div class="row">
             <button id="askAiBtn">Perguntar à IA</button>
             <button id="saveAiAsNoteBtn" class="ghost">Salvar nas anotações</button>
@@ -179,16 +165,11 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const SUPABASE_URL = "https://tvnwjcsadtjhxzakends.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_4J6y5G3ZW0KCE4o4ViNUcg_Ai9ybV8w";
-    const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
     const state = {
-      user: null,
-      theme: localStorage.getItem("acfpro_theme") || "dark",
-      favorites: JSON.parse(localStorage.getItem("acfpro_favorites") || "[]"),
-      notes: JSON.parse(localStorage.getItem("acfpro_notes") || "{}"),
-      plan: JSON.parse(localStorage.getItem("acfpro_plan") || "{}"),
+      theme: localStorage.getItem("acffree_theme") || "dark",
+      favorites: JSON.parse(localStorage.getItem("acffree_favorites") || "[]"),
+      notes: JSON.parse(localStorage.getItem("acffree_notes") || "{}"),
+      plan: JSON.parse(localStorage.getItem("acffree_plan") || "{}"),
       books: [],
       flatVerses: [],
       currentBook: "",
@@ -201,12 +182,24 @@
       "Dia 6 - Provérbios 3","Dia 7 - Isaías 41","Dia 8 - João 14","Dia 9 - Salmos 91","Dia 10 - Tiago 1"
     ];
 
+    const keywordThemes = {
+      ansiedade: ["Filipenses 4:6", "Mateus 6:25", "Salmos 55:22"],
+      fe: ["Hebreus 11:1", "Romanos 10:17", "Marcos 11:24"],
+      amor: ["1 Coríntios 13:4", "João 3:16", "1 João 4:8"],
+      medo: ["Isaías 41:10", "Salmos 23:4", "2 Timóteo 1:7"],
+      perdão: ["Mateus 6:14", "Efésios 4:32", "Colossenses 3:13"],
+      esperança: ["Romanos 15:13", "Jeremias 29:11", "Salmos 42:11"],
+      oração: ["Mateus 6:6", "1 Tessalonicenses 5:17", "Filipenses 4:6"],
+      família: ["Josué 24:15", "Provérbios 22:6", "Efésios 6:1"],
+      salvação: ["João 3:16", "Romanos 10:9", "Efésios 2:8"]
+    };
+
     function el(id){ return document.getElementById(id); }
     function saveLocal(){
-      localStorage.setItem("acfpro_theme", state.theme);
-      localStorage.setItem("acfpro_favorites", JSON.stringify(state.favorites));
-      localStorage.setItem("acfpro_notes", JSON.stringify(state.notes));
-      localStorage.setItem("acfpro_plan", JSON.stringify(state.plan));
+      localStorage.setItem("acffree_theme", state.theme);
+      localStorage.setItem("acffree_favorites", JSON.stringify(state.favorites));
+      localStorage.setItem("acffree_notes", JSON.stringify(state.notes));
+      localStorage.setItem("acffree_plan", JSON.stringify(state.plan));
     }
     function toast(msg){
       const t = el("toast");
@@ -215,7 +208,6 @@
       setTimeout(()=>t.classList.remove("show"), 1800);
     }
     function setTheme(){ document.body.className = state.theme === "light" ? "light" : ""; }
-    function setAuthStatus(){ el("authStatus").textContent = state.user ? `Logado: ${state.user.email}` : "Modo local"; }
     function switchView(view){
       document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
       document.querySelectorAll(".menu-btn").forEach(v=>v.classList.remove("active"));
@@ -230,6 +222,7 @@
     function refFor(v){ return `${v.book} ${v.chapter}:${v.verse}`; }
     function chapterVerses(book, chapter){ return state.flatVerses.filter(v => v.book === book && v.chapter === Number(chapter)); }
     function allChapters(book){ return [...new Set(state.flatVerses.filter(v=>v.book===book).map(v=>v.chapter))].sort((a,b)=>a-b); }
+    function findByRef(ref){ return state.flatVerses.find(v => refFor(v).toLowerCase() === ref.toLowerCase()); }
 
     async function loadBible() {
       try {
@@ -305,10 +298,10 @@
 
       const ai = document.createElement("button");
       ai.className = "small-btn ghost";
-      ai.textContent = "Explicar com IA";
+      ai.textContent = "Explicar grátis";
       ai.onclick = () => {
         el("aiMode").value = "explicar";
-        el("aiInput").value = `Explique ${refFor(v)}: ${v.text}`;
+        el("aiInput").value = `${refFor(v)}: ${v.text}`;
         switchView("ia");
       };
 
@@ -409,86 +402,12 @@
       });
     }
 
-    async function register(){
-      if(!sb) return toast("Supabase não configurado");
-      const { error } = await sb.auth.signUp({
-        email: el("email").value.trim(),
-        password: el("password").value.trim()
-      });
-      if(error) return toast(error.message);
-      toast("Cadastro enviado");
-    }
-
-    async function login(){
-      if(!sb) return toast("Supabase não configurado");
-      const { data, error } = await sb.auth.signInWithPassword({
-        email: el("email").value.trim(),
-        password: el("password").value.trim()
-      });
-      if(error) return toast(error.message);
-      state.user = data.user;
-      setAuthStatus();
-      await syncFromCloud();
-      toast("Login realizado");
-    }
-
-    async function logout(){
-      if(sb) await sb.auth.signOut();
-      state.user = null;
-      setAuthStatus();
-      toast("Sessão encerrada");
-    }
-
-    async function checkSession(){
-      if(!sb) return;
-      const { data } = await sb.auth.getUser();
-      state.user = data?.user || null;
-      setAuthStatus();
-      if(state.user) await syncFromCloud();
-    }
-
-    async function syncFromCloud(){
-      if(!sb || !state.user) return;
-      const favs = await sb.from("favorites").select("verse_key").eq("user_id", state.user.id);
-      if(!favs.error) state.favorites = (favs.data || []).map(x=>x.verse_key);
-
-      const notes = await sb.from("notes").select("verse_key, content").eq("user_id", state.user.id);
-      if(!notes.error){
-        state.notes = {};
-        (notes.data || []).forEach(x => state.notes[x.verse_key] = x.content);
-      }
-
-      const plan = await sb.from("reading_progress").select("day_index, done").eq("user_id", state.user.id);
-      if(!plan.error){
-        state.plan = {};
-        (plan.data || []).forEach(x => state.plan[x.day_index] = !!x.done);
-      }
-
-      saveLocal();
-      renderFavorites();
-      renderNotes();
-      renderPlan();
-    }
-
-    async function toggleFavorite(ref){
+    function toggleFavorite(ref){
       if(state.favorites.includes(ref)){
         state.favorites = state.favorites.filter(x => x !== ref);
-        if(state.user && sb){
-          await sb.from("favorites").delete().eq("user_id", state.user.id).eq("verse_key", ref);
-        }
         toast("Favorito removido");
       } else {
         state.favorites.unshift(ref);
-        if(state.user && sb){
-          const m = ref.match(/^(.*) (\d+):(\d+)$/);
-          await sb.from("favorites").upsert({
-            user_id: state.user.id,
-            verse_key: ref,
-            book: m ? m[1] : ref,
-            chapter: m ? Number(m[2]) : 1,
-            verse: m ? Number(m[3]) : 1
-          }, { onConflict: "user_id,verse_key" });
-        }
         toast("Favorito salvo");
       }
       saveLocal();
@@ -497,98 +416,89 @@
       renderSearch();
     }
 
-    async function saveNote(){
+    function saveNote(){
       const ref = el("noteRef").value.trim();
       const text = el("noteText").value.trim();
       if(!ref) return toast("Digite a referência");
-
-      if(text) state.notes[ref] = text;
-      else delete state.notes[ref];
-
-      if(state.user && sb){
-        const m = ref.match(/^(.*) (\d+):(\d+)$/);
-        if(text){
-          await sb.from("notes").upsert({
-            user_id: state.user.id,
-            verse_key: ref,
-            book: m ? m[1] : ref,
-            chapter: m ? Number(m[2]) : 1,
-            verse: m ? Number(m[3]) : 1,
-            content: text
-          }, { onConflict: "user_id,verse_key" });
-        } else {
-          await sb.from("notes").delete().eq("user_id", state.user.id).eq("verse_key", ref);
-        }
-      }
-
+      if(text) state.notes[ref] = text; else delete state.notes[ref];
       saveLocal();
       renderNotes();
       toast(text ? "Anotação salva" : "Anotação removida");
     }
 
-    async function togglePlan(i){
+    function togglePlan(i){
       state.plan[i] = !state.plan[i];
-      if(state.user && sb){
-        await sb.from("reading_progress").upsert({
-          user_id: state.user.id,
-          day_index: i,
-          done: !!state.plan[i]
-        }, { onConflict: "user_id,day_index" });
-      }
       saveLocal();
       renderPlan();
     }
 
-    async function resetPlan(){
+    function resetPlan(){
       state.plan = {};
-      if(state.user && sb){
-        await sb.from("reading_progress").delete().eq("user_id", state.user.id);
-      }
       saveLocal();
       renderPlan();
       toast("Plano resetado");
     }
 
-    function systemPrompt(mode){
-      const map = {
-        chat: "Responda em português do Brasil como um assistente bíblico respeitoso. Use linguagem simples e objetiva.",
-        explicar: "Explique o versículo ou trecho pedido em português do Brasil com contexto, significado e aplicação prática.",
-        reflexao: "Crie uma reflexão bíblica em português do Brasil, profunda e acessível.",
-        oracao: "Escreva uma oração em português do Brasil, reverente e ligada ao tema pedido.",
-        estudo: "Monte um estudo bíblico completo em português do Brasil com título, introdução, versículos, explicação, aplicação e conclusão."
-      };
-      return map[mode] || map.chat;
+    function getThemeRefs(input){
+      const text = input.toLowerCase();
+      for (const key of Object.keys(keywordThemes)) {
+        if (text.includes(key)) return keywordThemes[key];
+      }
+      return [];
     }
 
-    async function askAI(){
+    function makeVerseSnippet(ref){
+      const verse = findByRef(ref);
+      if(!verse) return `- ${ref}`;
+      return `- ${ref}: ${verse.text}`;
+    }
+
+    function buildFreeAnswer(mode, input){
+      const refs = getThemeRefs(input);
+      const directRefMatch = input.match(/([1-3]?\s?[A-Za-zÁ-ú]+)\s+(\d+):(\d+)/i);
+
+      if(mode === "explicar"){
+        let verseText = "";
+        let ref = "";
+        if(directRefMatch){
+          ref = `${directRefMatch[1].trim()} ${directRefMatch[2]}:${directRefMatch[3]}`;
+          const v = findByRef(ref);
+          if(v) verseText = v.text;
+        } else {
+          const m = input.match(/^(.*?):\s*(.*)$/);
+          if(m){ ref = m[1]; verseText = m[2]; }
+        }
+        return `Explicação bíblica\n\nReferência: ${ref || "Não identificada"}\n\nSentido principal:\nEsse trecho aponta para a ação de Deus, chamando a pessoa à fé, obediência e confiança.\n\nAplicação prática:\n- ore sobre esse texto\n- observe o que ele revela sobre Deus\n- veja como aplicar hoje na sua vida\n\nTexto analisado:\n${verseText || "Cole ou digite o versículo para uma explicação mais precisa."}`;
+      }
+
+      if(mode === "reflexao"){
+        return `Reflexão\n\nTema: ${input}\n\nA Palavra de Deus nos mostra que mesmo em tempos difíceis o Senhor continua presente, guiando, sustentando e fortalecendo. Quando olhamos para a Bíblia, percebemos que Deus não abandona os seus filhos.\n\nAplicação:\n- confie em Deus hoje\n- persevere em oração\n- lembre-se das promessas bíblicas\n\nVersículos sugeridos:\n${refs.length ? refs.map(makeVerseSnippet).join("\n") : "- Busque também Salmos, João e Romanos sobre esse tema."}`;
+      }
+
+      if(mode === "oracao"){
+        return `Oração\n\nSenhor Deus, eu coloco diante de Ti este tema: ${input}.\nFortalece meu coração, dirige meus passos e ajuda-me a permanecer firme na Tua Palavra.\nDá-me sabedoria, paz e confiança para viver de acordo com a Tua vontade.\nEm nome de Jesus, amém.`;
+      }
+
+      if(mode === "estudo"){
+        return `Estudo bíblico\n\nTítulo: ${input}\n\nIntrodução:\nA Bíblia trata esse tema de forma prática e espiritual, mostrando como Deus age e como devemos responder.\n\nVersículos principais:\n${refs.length ? refs.map(makeVerseSnippet).join("\n") : "- João 3:16\n- Romanos 8:28\n- Filipenses 4:6"}\n\nPontos do estudo:\n1. O que esse tema revela sobre Deus\n2. Como aplicar no dia a dia\n3. Qual mudança prática esse texto pede\n\nPerguntas para reflexão:\n- O que Deus está falando comigo nesse assunto?\n- O que preciso mudar?\n- Como posso viver isso hoje?\n\nConclusão:\nDeus continua falando por meio da Sua Palavra. O mais importante é ler, meditar, praticar e perseverar.`;
+      }
+
+      return `Resposta bíblica\n\nPergunta: ${input}\n\nA Bíblia orienta que busquemos a Deus com sinceridade, fé e obediência. Leia, ore e compare esse tema com outras passagens.\n\nVersículos relacionados:\n${refs.length ? refs.map(makeVerseSnippet).join("\n") : "- Salmos 119:105\n- João 14:6\n- Romanos 15:4"}`;
+    }
+
+    function askAI(){
       const mode = el("aiMode").value;
       const input = el("aiInput").value.trim();
       if(!input) return toast("Digite sua pergunta");
-
-      el("aiOutput").textContent = "Gerando resposta...";
-
-      try{
-        const response = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode, system: systemPrompt(mode), input })
-        });
-
-        const data = await response.json();
-        if(!response.ok) throw new Error(data.error || "Falha na IA");
-
-        state.lastAiAnswer = data.output || "";
-        el("aiOutput").textContent = state.lastAiAnswer || "Sem resposta.";
-      }catch(e){
-        el("aiOutput").textContent = "Erro ao falar com a IA. Verifique OPENAI_API_KEY no Vercel.";
-      }
+      const answer = buildFreeAnswer(mode, input);
+      state.lastAiAnswer = answer;
+      el("aiOutput").textContent = answer;
     }
 
     function saveAiAsNote(){
       const text = state.lastAiAnswer.trim();
-      if(!text) return toast("Ainda não há resposta da IA");
-
-      const ref = el("noteRef").value.trim() || "IA - estudo";
+      if(!text) return toast("Ainda não há resposta");
+      const ref = el("noteRef").value.trim() || "IA grátis - estudo";
       el("noteRef").value = ref;
       el("noteText").value = text;
       saveNote();
@@ -597,9 +507,6 @@
 
     document.querySelectorAll(".menu-btn").forEach(btn => btn.addEventListener("click", ()=>switchView(btn.dataset.view)));
     el("themeToggle").addEventListener("click", ()=>{ state.theme = state.theme === "dark" ? "light" : "dark"; setTheme(); saveLocal(); });
-    el("registerBtn").addEventListener("click", register);
-    el("loginBtn").addEventListener("click", login);
-    el("logoutBtn").addEventListener("click", logout);
     el("bookSelect").addEventListener("change", ()=>{ state.currentBook = el("bookSelect").value; populateChapters(); renderChapter(); });
     el("chapterSelect").addEventListener("change", ()=>{ state.currentChapter = Number(el("chapterSelect").value); renderChapter(); });
     el("searchInput").addEventListener("input", ()=>{ switchView("busca"); renderSearch(); });
@@ -610,11 +517,9 @@
     el("saveAiAsNoteBtn").addEventListener("click", saveAiAsNote);
 
     setTheme();
-    setAuthStatus();
     renderFavorites();
     renderNotes();
     renderPlan();
-    checkSession();
     loadBible();
   </script>
 </body>

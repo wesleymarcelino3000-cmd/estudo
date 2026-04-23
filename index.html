@@ -1,27 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bíblia King James Final</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bíblia King James</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <header class="topbar">
+    <h1>📖 Bíblia King James</h1>
+    <p>Versão corrigida para Vercel</p>
+  </header>
 
-<header>
-<h1>📖 Bíblia King James FINAL</h1>
-<input type="text" id="search" placeholder="Buscar versículo...">
-</header>
+  <main class="container">
+    <section class="toolbar">
+      <input type="text" id="search" placeholder="Buscar versículo, palavra ou livro..." />
+      <div class="tabs">
+        <button class="tab active" data-view="read">Leitura</button>
+        <button class="tab" data-view="fav">Favoritos</button>
+      </div>
+    </section>
 
-<div class="tabs">
-<button onclick="showTab('read')">Leitura</button>
-<button onclick="showTab('fav')">Favoritos</button>
-</div>
+    <section id="status" class="status"></section>
+    <section id="content" class="content"></section>
+  </main>
 
-<main id="content"></main>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
-
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

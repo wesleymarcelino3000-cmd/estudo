@@ -20,7 +20,7 @@
     .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
     .brand{display:flex;align-items:center;gap:14px}
     .brand-mark{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#f6e8ad);color:#111;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700}
-    .brand h1{margin:0;font-size:28px}
+    .brand-icon{width:56px;height:56px;border-radius:16px;object-fit:cover}.brand h1{margin:0;font-size:28px}
     .brand p{margin:6px 0 0;color:var(--muted)}
     .layout{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 93px)}
     .sidebar{padding:18px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:16px}
@@ -53,11 +53,13 @@
     .toast.show{opacity:1;transform:translateY(0)}
     @media (max-width:980px){.layout{grid-template-columns:1fr}.sidebar{border-right:none;border-bottom:1px solid var(--border)}}
   </style>
+  <link rel="icon" href="icons/icon-512.png" />
+  <link rel="apple-touch-icon" href="icons/icon-512.png" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">✝</div>
+      <img src="icons/icon-192.png" alt="Ícone" class="brand-icon" />
       <div>
         <h1>Bíblia ACF IA Grátis</h1>
         <p>Leitura, busca, favoritos, anotações, plano e IA local sem custo</p>

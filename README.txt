@@ -1,16 +1,16 @@
-BÍBLIA ACF - IA MAIS INTELIGENTE
+BÍBLIA ACF IA - VERSÃO COM ÍCONE PREMIUM
 
-Esta versão continua grátis, sem OpenAI e sem chave.
+Inclui:
+- IA offline inteligente
+- Bíblia ACF em JSON
+- PWA instalável
+- Ícone premium aplicado
+- manifest.json atualizado
+- sw.js atualizado
 
-Melhorias:
-- detecta tema automaticamente
-- busca versículos dentro do JSON da Bíblia
-- monta resposta baseada nos versículos encontrados
-- explica versículos de forma mais personalizada
-- gera estudo bíblico com perguntas e aplicação
-- mantém PWA instalável
-
-Depois de subir no GitHub/Vercel:
-1. Faça Redeploy
-2. Use CTRL + F5 no navegador
-3. Teste: "o que a Bíblia fala sobre ansiedade?"
+Como usar:
+1. Descompacte o ZIP
+2. Suba tudo no GitHub mantendo as pastas
+3. Faça Redeploy no Vercel
+4. No navegador, pressione CTRL + F5
+5. No celular, use 'Adicionar à tela inicial' ou botão 'Instalar app'

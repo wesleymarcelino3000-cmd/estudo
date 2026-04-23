@@ -1,15 +1,31 @@
-BÍBLIA KING JAMES - ZIP CORRIGIDO
+BÍBLIA KING JAMES MAX
 
-Esse pacote corrige o problema de tela vazia no Vercel.
+Conteúdo:
+- Bíblia King James 1769 completa
+- leitura por livro e capítulo
+- busca
+- favoritos
+- anotações
+- plano de leitura
+- login com Supabase
+- sincronização em nuvem
+- PWA
+- script SQL em sql/supabase.sql
 
-Estrutura:
+Estrutura que precisa subir para GitHub/Vercel:
 - index.html
 - style.css
 - app.js
 - config.js
-- data/kjv.json
+- manifest.json
+- sw.js
+- data/verses-1769.json
+- data/layout-1769.json
+- sql/supabase.sql
 
-Como publicar no Vercel:
-1. Suba o conteúdo desta pasta
-2. Confirme que o arquivo data/kjv.json foi junto
-3. Abra /data/kjv.json no navegador para testar
+Passos:
+1. Suba a pasta inteira descompactada
+2. Rode sql/supabase.sql no Supabase
+3. Ative Auth por e-mail no Supabase
+4. Faça redeploy no Vercel
+5. Teste login, favoritos, anotações e plano

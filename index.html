@@ -3,27 +3,153 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bíblia King James</title>
+  <title>Bíblia King James Max</title>
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <header class="topbar">
-    <h1>📖 Bíblia King James</h1>
-    <p>Versão corrigida para Vercel</p>
+    <div class="brand">
+      <div class="brand-mark">✝</div>
+      <div>
+        <h1>Bíblia King James Max</h1>
+        <p>Leitura completa, busca, favoritos, anotações e nuvem</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="themeToggle" class="ghost">Tema</button>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="toolbar">
-      <input type="text" id="search" placeholder="Buscar versículo, palavra ou livro..." />
-      <div class="tabs">
-        <button class="tab active" data-view="read">Leitura</button>
-        <button class="tab" data-view="fav">Favoritos</button>
-      </div>
-    </section>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <section class="panel auth-panel">
+        <div class="panel-title">Conta</div>
+        <input id="email" type="email" placeholder="Seu e-mail" />
+        <input id="password" type="password" placeholder="Sua senha" />
+        <div class="btn-grid">
+          <button id="registerBtn">Cadastrar</button>
+          <button id="loginBtn">Entrar</button>
+          <button id="logoutBtn" class="ghost">Sair</button>
+        </div>
+        <div id="authStatus" class="muted">Modo local</div>
+      </section>
 
-    <section id="status" class="status"></section>
-    <section id="content" class="content"></section>
+      <section class="panel">
+        <div class="panel-title">Navegação</div>
+        <div class="field-group">
+          <label>Livro</label>
+          <select id="bookSelect"></select>
+        </div>
+        <div class="field-group">
+          <label>Capítulo</label>
+          <select id="chapterSelect"></select>
+        </div>
+        <div class="field-group">
+          <label>Buscar</label>
+          <input id="searchInput" type="text" placeholder="Ex.: Jesus, faith, love..." />
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Menu</div>
+        <div class="menu">
+          <button class="menu-btn active" data-view="chapter">📖 Capítulo</button>
+          <button class="menu-btn" data-view="search">🔎 Busca</button>
+          <button class="menu-btn" data-view="favorites">⭐ Favoritos</button>
+          <button class="menu-btn" data-view="notes">📝 Anotações</button>
+          <button class="menu-btn" data-view="plan">📅 Plano</button>
+          <button class="menu-btn" data-view="system">⚙️ Sistema</button>
+        </div>
+      </section>
+
+      <section class="panel mini">
+        <div class="panel-title">Status</div>
+        <div id="statusText" class="muted">Carregando Bíblia completa...</div>
+      </section>
+    </aside>
+
+    <section class="content">
+      <section id="view-chapter" class="view active">
+        <div class="view-head">
+          <h2 id="chapterTitle">Leitura do capítulo</h2>
+          <p class="muted">Clique em um versículo para salvar favorito ou abrir anotação.</p>
+        </div>
+        <div id="chapterList" class="list"></div>
+      </section>
+
+      <section id="view-search" class="view">
+        <div class="view-head">
+          <h2>Busca em toda a Bíblia</h2>
+          <p class="muted">Mostra até 200 resultados por pesquisa.</p>
+        </div>
+        <div id="searchList" class="list"></div>
+      </section>
+
+      <section id="view-favorites" class="view">
+        <div class="view-head">
+          <h2>Favoritos</h2>
+          <p class="muted">No login, sincroniza com o Supabase.</p>
+        </div>
+        <div id="favoritesList" class="list"></div>
+      </section>
+
+      <section id="view-notes" class="view">
+        <div class="view-head">
+          <h2>Anotações</h2>
+          <p class="muted">Você pode usar localmente ou na nuvem.</p>
+        </div>
+        <div class="notes-grid">
+          <div class="panel">
+            <div id="selectedVerseRef" class="selected-ref">Selecione um versículo</div>
+            <textarea id="noteText" rows="10" placeholder="Escreva sua anotação aqui..."></textarea>
+            <div class="actions">
+              <button id="saveNoteBtn">Salvar anotação</button>
+              <button id="clearNoteBtn" class="ghost">Limpar</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Lista de anotações</div>
+            <div id="notesList" class="list compact"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-plan" class="view">
+        <div class="view-head">
+          <h2>Plano de leitura</h2>
+          <p class="muted">Plano de 30 dias com sincronização opcional.</p>
+        </div>
+        <div class="actions">
+          <button id="resetPlanBtn" class="ghost">Resetar plano</button>
+        </div>
+        <div id="planList" class="plan-grid"></div>
+      </section>
+
+      <section id="view-system" class="view">
+        <div class="view-head">
+          <h2>Sistema</h2>
+          <p class="muted">Projeto pronto para Vercel + Supabase.</p>
+        </div>
+        <div class="panel">
+          <ul class="plain-list">
+            <li>Bíblia King James 1769 completa</li>
+            <li>Leitura por livro e capítulo</li>
+            <li>Busca em toda a Bíblia</li>
+            <li>Favoritos e anotações locais</li>
+            <li>Login por e-mail</li>
+            <li>Sincronização de favoritos, anotações e progresso</li>
+            <li>PWA com manifest e service worker</li>
+            <li>Script SQL incluso na pasta sql</li>
+          </ul>
+        </div>
+      </section>
+    </section>
   </main>
+
+  <div id="toast" class="toast"></div>
 
   <script src="config.js"></script>
   <script src="app.js"></script>
